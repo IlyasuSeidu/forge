@@ -2,6 +2,8 @@
 
 **Production-grade system for turning natural-language ideas into fully built applications**
 
+🔗 **Repository**: [https://github.com/IlyasuSeidu/forge](https://github.com/IlyasuSeidu/forge)
+
 Forge is a backend-first platform designed to orchestrate autonomous AI agents that transform user ideas into working software. It is built to be production-ready from day one, with a focus on clarity, correctness, and extensibility.
 
 ## Status
