@@ -4,6 +4,7 @@ import type { Execution, ExecutionEvent } from '../models/index.js';
 import { ExecutionStatus } from '../models/index.js';
 import { prisma } from '../lib/prisma.js';
 import { ExecutionRunner } from './execution-runner.js';
+import { AgentRegistry } from '../agents/index.js';
 import { BusinessRuleError } from '../utils/errors.js';
 
 /**
@@ -12,10 +13,15 @@ import { BusinessRuleError } from '../utils/errors.js';
 export class ExecutionService {
   private logger: FastifyBaseLogger;
   private runner: ExecutionRunner;
+  private agentRegistry: AgentRegistry;
 
   constructor(logger: FastifyBaseLogger) {
     this.logger = logger.child({ service: 'ExecutionService' });
-    this.runner = new ExecutionRunner(logger);
+    this.agentRegistry = new AgentRegistry();
+    // Note: Register custom agents here when implementing AI integration
+    // Example: this.agentRegistry.registerAgent(new ClaudeAgent());
+
+    this.runner = new ExecutionRunner(logger, this.agentRegistry);
   }
 
   /**

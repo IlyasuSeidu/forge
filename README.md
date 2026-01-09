@@ -21,11 +21,13 @@ Currently implemented:
 - ✅ **Crash recovery with automatic state restoration**
 - ✅ **Idempotent task processing**
 - ✅ **Concurrent execution prevention**
+- ✅ **Agent abstraction layer** (clean boundary for task execution)
+- ✅ **Pluggable agent system** (DefaultAgent for simulation)
 - ✅ Structured logging (Pino)
 - ✅ Centralized error handling
 
 Not yet implemented:
-- ❌ AI agent integration (currently simulated with delays)
+- ❌ AI agent integration (architecture ready, not yet connected)
 - ❌ Authentication & authorization
 - ❌ Web UI
 - ❌ Real code generation
@@ -529,6 +531,58 @@ idle → running → completed
 - No execution is silently lost on server crash
 - All state transitions are logged as events
 - Task processing is sequential and deterministic
+
+### Agent Abstraction
+
+Forge separates **execution orchestration** from **task execution** through a clean agent abstraction layer.
+
+**Why This Matters**:
+- Execution engine is pure orchestration (state management, events, resume/pause)
+- Agents are pluggable workers that execute individual tasks
+- This architecture allows swapping AI models without touching the execution engine
+- Enables testing without AI, human-in-the-loop, or hybrid approaches
+
+**Agent Interface**:
+```typescript
+interface Agent {
+  name: string;
+  canHandle(task: Task): boolean;
+  execute(task: Task, context: AgentContext): Promise<AgentResult>;
+}
+```
+
+**Agent Context**:
+Every agent receives full context about the execution:
+- Project details
+- Current execution state
+- Task to execute
+- All previous execution events (for history/context)
+- Workspace path (for file operations)
+
+**Agent Selection**:
+- AgentRegistry maintains available agents
+- For each task, registry selects first agent where `canHandle()` returns true
+- Falls back to DefaultAgent if no specialized agent matches
+- New agents can be registered without modifying ExecutionRunner
+
+**Current Agents**:
+- **DefaultAgent**: Simulates task execution with delays (placeholder until AI integration)
+- **TestFailingAgent**: For testing failure scenarios (development only)
+
+**Event Flow**:
+```
+agent_selected → agent_execution_started → agent_execution_completed/failed
+```
+
+**Critical Design Decision**:
+By abstracting agents, Forge avoids the common pitfall of tightly coupling orchestration to a specific AI provider. The execution engine has **zero knowledge** of how tasks are executed—it only knows to select an agent and handle the result.
+
+This means:
+- AI integration becomes a simple agent implementation
+- Can switch from Claude to OpenAI by swapping agents
+- Can run multiple specialized agents for different task types
+- Human-in-the-loop is just another agent type
+- Testing doesn't require AI calls
 
 ### Service Layer
 

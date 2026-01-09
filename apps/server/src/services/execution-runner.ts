@@ -1,17 +1,21 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { prisma } from '../lib/prisma.js';
 import { ExecutionStatus, TaskStatus } from '../models/index.js';
+import { AgentRegistry } from '../agents/index.js';
+import type { AgentContext } from '../agents/index.js';
 import crypto from 'node:crypto';
 
 /**
  * ExecutionRunner handles the execution state machine and orchestration
- * Processes tasks sequentially and emits events for each step
+ * Processes tasks sequentially by delegating to agents
  */
 export class ExecutionRunner {
   private logger: FastifyBaseLogger;
+  private agentRegistry: AgentRegistry;
 
-  constructor(logger: FastifyBaseLogger) {
+  constructor(logger: FastifyBaseLogger, agentRegistry: AgentRegistry) {
     this.logger = logger.child({ service: 'ExecutionRunner' });
+    this.agentRegistry = agentRegistry;
   }
 
   /**
@@ -129,8 +133,8 @@ export class ExecutionRunner {
 
   /**
    * Processes a single task (idempotent)
-   * Skips tasks that are already completed for this execution
-   * Simulates task processing with a delay
+   * Skips tasks that are already completed
+   * Delegates actual work to an agent
    */
   private async processTask(executionId: string, taskId: string): Promise<void> {
     // Fetch current task state
@@ -147,6 +151,21 @@ export class ExecutionRunner {
       );
       return;
     }
+
+    // Select agent for this task
+    const agent = this.agentRegistry.selectAgent(task);
+
+    this.logger.info(
+      { executionId, taskId, agentName: agent.name },
+      'Agent selected for task'
+    );
+
+    // Emit agent_selected event
+    await this.emitEvent(
+      executionId,
+      'agent_selected',
+      `Selected agent: ${agent.name} for task: ${task.title}`
+    );
 
     // Mark task as in_progress and associate with this execution
     await prisma.task.update({
@@ -170,29 +189,95 @@ export class ExecutionRunner {
       `Started task: ${task.title}`
     );
 
-    // Simulate task processing (500ms delay)
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Mark task as completed
-    await prisma.task.update({
-      where: { id: taskId },
-      data: {
-        status: TaskStatus.Completed,
-        finishedAt: new Date(),
-      },
+    // Build agent context
+    const execution = await prisma.execution.findUnique({
+      where: { id: executionId },
     });
 
-    this.logger.info(
-      { executionId, taskId, title: task.title },
-      'Task completed'
-    );
+    const project = await prisma.project.findUnique({
+      where: { id: task.projectId },
+    });
 
-    // Emit task_completed event
+    const previousEvents = await prisma.executionEvent.findMany({
+      where: { executionId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (!execution || !project) {
+      throw new Error('Failed to load execution context');
+    }
+
+    const context: AgentContext = {
+      project,
+      execution,
+      task,
+      previousEvents,
+      workspacePath: '/tmp/forge-workspace', // Placeholder
+    };
+
+    // Emit agent_execution_started event
     await this.emitEvent(
       executionId,
-      'task_completed',
-      `Completed task: ${task.title}`
+      'agent_execution_started',
+      `Agent ${agent.name} started executing task: ${task.title}`
     );
+
+    // Execute task via agent
+    const result = await agent.execute(task, context);
+
+    if (result.success) {
+      // Mark task as completed
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          status: TaskStatus.Completed,
+          finishedAt: new Date(),
+        },
+      });
+
+      this.logger.info(
+        { executionId, taskId, title: task.title, agentName: agent.name },
+        'Task completed successfully'
+      );
+
+      // Emit agent_execution_completed event
+      await this.emitEvent(
+        executionId,
+        'agent_execution_completed',
+        `Agent ${agent.name} completed: ${result.message}`
+      );
+
+      // Emit task_completed event
+      await this.emitEvent(
+        executionId,
+        'task_completed',
+        `Completed task: ${task.title}`
+      );
+    } else {
+      // Task failed
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          status: TaskStatus.Failed,
+          finishedAt: new Date(),
+        },
+      });
+
+      this.logger.error(
+        { executionId, taskId, title: task.title, error: result.error },
+        'Task failed'
+      );
+
+      // Emit agent_execution_failed event
+      await this.emitEvent(
+        executionId,
+        'agent_execution_failed',
+        `Agent ${agent.name} failed: ${result.error ?? result.message}`
+      );
+
+      // Throw error to fail the entire execution
+      throw new Error(`Task failed: ${result.error ?? result.message}`);
+    }
   }
 
   /**
