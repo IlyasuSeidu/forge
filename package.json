@@ -1,0 +1,26 @@
+{
+  "name": "forge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production-grade system for turning natural-language ideas into fully built applications",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/server",
+    "build": "npm run build --workspace=apps/server",
+    "start": "npm run start --workspace=apps/server",
+    "typecheck": "npm run typecheck --workspace=apps/server"
+  },
+  "keywords": [
+    "ai",
+    "autonomous-agents",
+    "code-generation"
+  ],
+  "author": "",
+  "license": "MIT"
+}
