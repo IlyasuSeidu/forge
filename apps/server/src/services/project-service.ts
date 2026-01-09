@@ -1,50 +1,58 @@
 import crypto from 'node:crypto';
 import type { Project, CreateProjectInput } from '../models/index.js';
+import { prisma } from '../lib/prisma.js';
 
 /**
- * ProjectService manages project state
- * Currently in-memory; will be replaced with database persistence
+ * ProjectService manages project state using Prisma
  */
 export class ProjectService {
-  private projects: Map<string, Project> = new Map();
-
   /**
    * Creates a new project
    */
-  createProject(input: CreateProjectInput): Project {
-    const now = new Date();
-    const project: Project = {
-      id: crypto.randomUUID(),
-      name: input.name.trim(),
-      description: input.description.trim(),
-      createdAt: now,
-      updatedAt: now,
-    };
+  async createProject(input: CreateProjectInput): Promise<Project> {
+    const project = await prisma.project.create({
+      data: {
+        id: crypto.randomUUID(),
+        name: input.name.trim(),
+        description: input.description.trim(),
+      },
+    });
 
-    this.projects.set(project.id, project);
     return project;
   }
 
   /**
    * Retrieves all projects
    */
-  getAllProjects(): Project[] {
-    return Array.from(this.projects.values()).sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-    );
+  async getAllProjects(): Promise<Project[]> {
+    const projects = await prisma.project.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return projects;
   }
 
   /**
    * Retrieves a project by ID
    */
-  getProjectById(id: string): Project | null {
-    return this.projects.get(id) ?? null;
+  async getProjectById(id: string): Promise<Project | null> {
+    const project = await prisma.project.findUnique({
+      where: { id },
+    });
+
+    return project;
   }
 
   /**
    * Checks if a project exists
    */
-  projectExists(id: string): boolean {
-    return this.projects.has(id);
+  async projectExists(id: string): Promise<boolean> {
+    const count = await prisma.project.count({
+      where: { id },
+    });
+
+    return count > 0;
   }
 }

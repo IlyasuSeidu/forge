@@ -1,65 +1,61 @@
 import crypto from 'node:crypto';
 import type { Task, CreateTaskInput } from '../models/index.js';
 import { TaskStatus } from '../models/index.js';
+import { prisma } from '../lib/prisma.js';
 
 /**
- * TaskService manages task state
- * Currently in-memory; will be replaced with database persistence
+ * TaskService manages task state using Prisma
  */
 export class TaskService {
-  private tasks: Map<string, Task> = new Map();
-
   /**
    * Creates a new task for a project
    */
-  createTask(projectId: string, input: CreateTaskInput): Task {
-    const now = new Date();
-    const task: Task = {
-      id: crypto.randomUUID(),
-      projectId,
-      title: input.title.trim(),
-      description: input.description.trim(),
-      status: TaskStatus.Pending,
-      createdAt: now,
-      updatedAt: now,
-    };
+  async createTask(projectId: string, input: CreateTaskInput): Promise<Task> {
+    const task = await prisma.task.create({
+      data: {
+        id: crypto.randomUUID(),
+        projectId,
+        title: input.title.trim(),
+        description: input.description.trim(),
+        status: TaskStatus.Pending,
+      },
+    });
 
-    this.tasks.set(task.id, task);
     return task;
   }
 
   /**
    * Retrieves all tasks for a project
    */
-  getTasksByProjectId(projectId: string): Task[] {
-    return Array.from(this.tasks.values())
-      .filter((task) => task.projectId === projectId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  async getTasksByProjectId(projectId: string): Promise<Task[]> {
+    const tasks = await prisma.task.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return tasks;
   }
 
   /**
    * Retrieves a task by ID
    */
-  getTaskById(id: string): Task | null {
-    return this.tasks.get(id) ?? null;
+  async getTaskById(id: string): Promise<Task | null> {
+    const task = await prisma.task.findUnique({
+      where: { id },
+    });
+
+    return task;
   }
 
   /**
    * Updates a task's status
    */
-  updateTaskStatus(id: string, status: TaskStatus): Task | null {
-    const task = this.tasks.get(id);
-    if (!task) {
-      return null;
-    }
+  async updateTaskStatus(id: string, status: TaskStatus): Promise<Task | null> {
+    const task = await prisma.task.update({
+      where: { id },
+      data: { status },
+    });
 
-    const updatedTask: Task = {
-      ...task,
-      status,
-      updatedAt: new Date(),
-    };
-
-    this.tasks.set(id, updatedTask);
-    return updatedTask;
+    return task;
   }
 }

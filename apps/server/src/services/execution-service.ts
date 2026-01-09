@@ -1,45 +1,65 @@
 import crypto from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
-import type { Execution } from '../models/index.js';
+import type { Execution, ExecutionEvent } from '../models/index.js';
 import { ExecutionStatus } from '../models/index.js';
+import { prisma } from '../lib/prisma.js';
+import { ExecutionRunner } from './execution-runner.js';
+import { BusinessRuleError } from '../utils/errors.js';
 
 /**
- * ExecutionService manages execution state and orchestration
- * Currently implements stub behavior; will be replaced with real AI orchestration
+ * ExecutionService manages execution state and orchestration using Prisma
  */
 export class ExecutionService {
-  private executions: Map<string, Execution> = new Map();
   private logger: FastifyBaseLogger;
+  private runner: ExecutionRunner;
 
   constructor(logger: FastifyBaseLogger) {
     this.logger = logger.child({ service: 'ExecutionService' });
+    this.runner = new ExecutionRunner(logger);
   }
 
   /**
    * Creates and starts a new execution
-   * Currently implements stub behavior: marks as running, then completes after 2 seconds
+   * Ensures only one execution can run at a time for a project
    */
   async startExecution(projectId: string): Promise<Execution> {
-    const now = new Date();
-    const execution: Execution = {
-      id: crypto.randomUUID(),
-      projectId,
-      status: ExecutionStatus.Running,
-      startedAt: now,
-      finishedAt: null,
-    };
+    // Check if there's already a running execution for this project
+    const runningExecution = await prisma.execution.findFirst({
+      where: {
+        projectId,
+        status: ExecutionStatus.Running,
+      },
+    });
 
-    this.executions.set(execution.id, execution);
+    if (runningExecution) {
+      throw new BusinessRuleError(
+        `Cannot start execution: project already has a running execution (${runningExecution.id})`
+      );
+    }
+
+    // Create new execution
+    const execution = await prisma.execution.create({
+      data: {
+        id: crypto.randomUUID(),
+        projectId,
+        status: ExecutionStatus.Idle,
+      },
+    });
 
     this.logger.info(
       { executionId: execution.id, projectId },
-      'Execution started (stub mode)'
+      'Execution created, starting runner'
     );
 
-    // Stub behavior: simulate execution completing after 2 seconds
-    setTimeout(() => {
-      this.completeExecution(execution.id);
-    }, 2000);
+    // Start execution in background (non-blocking)
+    setImmediate(() => {
+      this.runner.runExecution(execution.id).catch((error) => {
+        this.logger.error(
+          { executionId: execution.id, error },
+          'Execution runner failed'
+        );
+      });
+    });
 
     return execution;
   }
@@ -47,43 +67,35 @@ export class ExecutionService {
   /**
    * Retrieves an execution by ID
    */
-  getExecutionById(id: string): Execution | null {
-    return this.executions.get(id) ?? null;
+  async getExecutionById(id: string): Promise<Execution | null> {
+    const execution = await prisma.execution.findUnique({
+      where: { id },
+    });
+
+    return execution;
   }
 
   /**
    * Retrieves all executions for a project
    */
-  getExecutionsByProjectId(projectId: string): Execution[] {
-    return Array.from(this.executions.values())
-      .filter((execution) => execution.projectId === projectId)
-      .sort((a, b) => {
-        const aTime = a.startedAt?.getTime() ?? 0;
-        const bTime = b.startedAt?.getTime() ?? 0;
-        return bTime - aTime;
-      });
+  async getExecutionsByProjectId(projectId: string): Promise<Execution[]> {
+    const executions = await prisma.execution.findMany({
+      where: { projectId },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    return executions;
   }
 
   /**
-   * Marks an execution as completed
+   * Retrieves all events for an execution
    */
-  private completeExecution(id: string): void {
-    const execution = this.executions.get(id);
-    if (!execution) {
-      return;
-    }
+  async getExecutionEvents(executionId: string): Promise<ExecutionEvent[]> {
+    const events = await prisma.executionEvent.findMany({
+      where: { executionId },
+      orderBy: { createdAt: 'asc' },
+    });
 
-    const completedExecution: Execution = {
-      ...execution,
-      status: ExecutionStatus.Completed,
-      finishedAt: new Date(),
-    };
-
-    this.executions.set(id, completedExecution);
-
-    this.logger.info(
-      { executionId: id, projectId: execution.projectId },
-      'Execution completed (stub mode)'
-    );
+    return events;
   }
 }

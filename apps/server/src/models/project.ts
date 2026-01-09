@@ -1,13 +1,10 @@
+import type { Project as PrismaProject } from '@prisma/client';
+
 /**
  * Project represents a user's application being built by Forge
+ * Re-export Prisma type for consistency
  */
-export interface Project {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type Project = PrismaProject;
 
 /**
  * Input for creating a new project

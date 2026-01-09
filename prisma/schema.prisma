@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String      @id
+  name        String
+  description String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  tasks       Task[]
+  executions  Execution[]
+}
+
+model Task {
+  id          String   @id
+  projectId   String
+  title       String
+  description String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model Execution {
+  id               String             @id
+  projectId        String
+  status           String             @default("idle")
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  project          Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  events           ExecutionEvent[]
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model ExecutionEvent {
+  id          String    @id
+  executionId String
+  type        String
+  message     String
+  createdAt   DateTime  @default(now())
+  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@index([createdAt])
+}

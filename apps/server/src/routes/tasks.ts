@@ -21,7 +21,7 @@ export async function taskRoutes(
       const projectId = request.params.id;
 
       // Verify project exists
-      if (!projectService.projectExists(projectId)) {
+      if (!(await projectService.projectExists(projectId))) {
         throw new NotFoundError('Project', projectId);
       }
 
@@ -32,7 +32,7 @@ export async function taskRoutes(
         );
       }
 
-      const task = taskService.createTask(projectId, request.body);
+      const task = await taskService.createTask(projectId, request.body);
 
       fastify.log.info(
         { taskId: task.id, projectId },
@@ -54,11 +54,11 @@ export async function taskRoutes(
       const projectId = request.params.id;
 
       // Verify project exists
-      if (!projectService.projectExists(projectId)) {
+      if (!(await projectService.projectExists(projectId))) {
         throw new NotFoundError('Project', projectId);
       }
 
-      const tasks = taskService.getTasksByProjectId(projectId);
+      const tasks = await taskService.getTasksByProjectId(projectId);
       return { tasks };
     }
   );

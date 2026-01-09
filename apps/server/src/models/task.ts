@@ -1,3 +1,5 @@
+import type { Task as PrismaTask } from '@prisma/client';
+
 /**
  * Task status represents the current state of a task in the execution pipeline
  */
@@ -11,16 +13,9 @@ export enum TaskStatus {
 
 /**
  * Task represents a single unit of work within a project
+ * Re-export Prisma type for consistency
  */
-export interface Task {
-  id: string;
-  projectId: string;
-  title: string;
-  description: string;
-  status: TaskStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type Task = PrismaTask;
 
 /**
  * Input for creating a new task

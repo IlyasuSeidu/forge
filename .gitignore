@@ -23,6 +23,11 @@ lerna-debug.log*
 .env.local
 .env.*.local
 
+# Database
+*.db
+*.db-journal
+prisma/migrations/dev.db
+
 # IDE
 .vscode/
 .idea/

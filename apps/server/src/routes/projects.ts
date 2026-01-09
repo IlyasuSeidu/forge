@@ -21,7 +21,7 @@ export async function projectRoutes(
       );
     }
 
-    const project = projectService.createProject(request.body);
+    const project = await projectService.createProject(request.body);
 
     fastify.log.info({ projectId: project.id }, 'Project created');
 
@@ -34,7 +34,7 @@ export async function projectRoutes(
    * Retrieves all projects
    */
   fastify.get('/projects', async () => {
-    const projects = projectService.getAllProjects();
+    const projects = await projectService.getAllProjects();
     return { projects };
   });
 
@@ -45,7 +45,7 @@ export async function projectRoutes(
   fastify.get<{ Params: { id: string } }>(
     '/projects/:id',
     async (request) => {
-      const project = projectService.getProjectById(request.params.id);
+      const project = await projectService.getProjectById(request.params.id);
 
       if (!project) {
         throw new NotFoundError('Project', request.params.id);

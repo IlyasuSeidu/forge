@@ -20,7 +20,7 @@ export async function executionRoutes(
       const projectId = request.params.id;
 
       // Verify project exists
-      if (!projectService.projectExists(projectId)) {
+      if (!(await projectService.projectExists(projectId))) {
         throw new NotFoundError('Project', projectId);
       }
 
@@ -46,11 +46,11 @@ export async function executionRoutes(
       const { id: projectId, executionId } = request.params;
 
       // Verify project exists
-      if (!projectService.projectExists(projectId)) {
+      if (!(await projectService.projectExists(projectId))) {
         throw new NotFoundError('Project', projectId);
       }
 
-      const execution = executionService.getExecutionById(executionId);
+      const execution = await executionService.getExecutionById(executionId);
 
       if (!execution) {
         throw new NotFoundError('Execution', executionId);
@@ -62,6 +62,38 @@ export async function executionRoutes(
       }
 
       return execution;
+    }
+  );
+
+  /**
+   * GET /projects/:id/executions/:executionId/events
+   * Retrieves all events for an execution
+   */
+  fastify.get<{ Params: { id: string; executionId: string } }>(
+    '/projects/:id/executions/:executionId/events',
+    async (request) => {
+      const { id: projectId, executionId } = request.params;
+
+      // Verify project exists
+      if (!(await projectService.projectExists(projectId))) {
+        throw new NotFoundError('Project', projectId);
+      }
+
+      // Verify execution exists and belongs to project
+      const execution = await executionService.getExecutionById(executionId);
+
+      if (!execution) {
+        throw new NotFoundError('Execution', executionId);
+      }
+
+      if (execution.projectId !== projectId) {
+        throw new NotFoundError('Execution', executionId);
+      }
+
+      // Retrieve events
+      const events = await executionService.getExecutionEvents(executionId);
+
+      return { events };
     }
   );
 }
