@@ -78,7 +78,7 @@ export class ClaudeService {
 
     try {
       const response = await this.client!.messages.create({
-        model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022',
+        model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929',
         max_tokens: request.maxTokens ?? 4096,
         temperature: request.temperature ?? 1.0,
         messages: [
