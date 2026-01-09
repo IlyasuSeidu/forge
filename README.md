@@ -8,22 +8,24 @@ Forge is a backend-first platform designed to orchestrate autonomous AI agents t
 
 ## Status
 
-**Early Development - Backend Foundation**
+**Early Development - Database & Execution Engine**
 
 Currently implemented:
-- ✅ Core backend API server
-- ✅ Domain models (Project, Task, Execution)
-- ✅ In-memory state management
+- ✅ Core backend API server (Fastify + TypeScript)
+- ✅ Domain models (Project, Task, Execution, ExecutionEvent)
+- ✅ **Database persistence (SQLite + Prisma)**
 - ✅ RESTful API endpoints
-- ✅ Structured logging
+- ✅ **Execution state machine (idle → running → completed/failed)**
+- ✅ **Sequential task processing with event logging**
+- ✅ **Concurrent execution prevention**
+- ✅ Structured logging (Pino)
 - ✅ Centralized error handling
 
 Not yet implemented:
-- ❌ Database persistence
-- ❌ AI agent integration
+- ❌ AI agent integration (currently simulated with delays)
 - ❌ Authentication & authorization
 - ❌ Web UI
-- ❌ Real execution orchestration
+- ❌ Real code generation
 
 ## Architecture
 
@@ -31,8 +33,9 @@ Not yet implemented:
 
 - **Runtime**: Node.js 18+
 - **Language**: TypeScript (strict mode)
-- **Package Manager**: pnpm
+- **Package Manager**: npm (with workspaces)
 - **Framework**: Fastify
+- **Database**: SQLite (development) + Prisma ORM
 - **Logging**: Pino
 
 ### Why Fastify?
@@ -235,10 +238,15 @@ Response:
 
 Start a new execution for a project.
 
-**⚠️ Current Behavior (Stub Mode)**:
-- Immediately marks execution as "running"
-- After 2 seconds, automatically marks as "completed"
-- No actual AI orchestration occurs yet
+**Current Behavior**:
+- Creates a new execution with "idle" status
+- Starts background processing immediately
+- Processes all project tasks sequentially
+- Transitions through states: idle → running → completed/failed
+- Logs events at each stage (execution_started, task_started, task_completed, execution_completed)
+- Prevents concurrent executions for the same project (returns 422 if already running)
+
+**⚠️ Note**: AI orchestration is simulated with delays. Real AI agent integration is not yet implemented.
 
 Response (201):
 ```json
@@ -263,6 +271,46 @@ Response:
   "status": "completed",
   "startedAt": "2024-01-15T10:32:00.000Z",
   "finishedAt": "2024-01-15T10:32:02.000Z"
+}
+```
+
+**GET /api/projects/:id/executions/:executionId/events**
+
+Get all events for an execution (ordered by creation time).
+
+Response:
+```json
+{
+  "events": [
+    {
+      "id": "880e8400-e29b-41d4-a716-446655440003",
+      "executionId": "770e8400-e29b-41d4-a716-446655440002",
+      "type": "execution_started",
+      "message": "Execution has started",
+      "createdAt": "2024-01-15T10:32:00.000Z"
+    },
+    {
+      "id": "990e8400-e29b-41d4-a716-446655440004",
+      "executionId": "770e8400-e29b-41d4-a716-446655440002",
+      "type": "task_started",
+      "message": "Started task: Set up database schema",
+      "createdAt": "2024-01-15T10:32:00.100Z"
+    },
+    {
+      "id": "aa0e8400-e29b-41d4-a716-446655440005",
+      "executionId": "770e8400-e29b-41d4-a716-446655440002",
+      "type": "task_completed",
+      "message": "Completed task: Set up database schema",
+      "createdAt": "2024-01-15T10:32:00.600Z"
+    },
+    {
+      "id": "bb0e8400-e29b-41d4-a716-446655440006",
+      "executionId": "770e8400-e29b-41d4-a716-446655440002",
+      "type": "execution_completed",
+      "message": "All tasks have been completed successfully",
+      "createdAt": "2024-01-15T10:32:01.200Z"
+    }
+  ]
 }
 ```
 
@@ -291,23 +339,26 @@ Common status codes:
 ### Prerequisites
 
 - Node.js 18 or higher
-- pnpm 8 or higher
+- npm (comes with Node.js)
 
 ### Installation
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
+
+# Run Prisma migrations
+npm run db:migrate
 
 # Type check
-pnpm typecheck
+npm run typecheck
 ```
 
 ### Development
 
 ```bash
 # Start development server with hot reload
-pnpm dev
+npm run dev
 
 # Server will be available at http://localhost:3000
 ```
@@ -316,10 +367,10 @@ pnpm dev
 
 ```bash
 # Build TypeScript
-pnpm build
+npm run build
 
 # Start production server
-pnpm start
+npm start
 ```
 
 ### Environment Variables
@@ -361,17 +412,22 @@ curl -X POST http://localhost:3000/api/projects/PROJECT_ID/executions
 
 # Get execution status (replace PROJECT_ID and EXECUTION_ID)
 curl http://localhost:3000/api/projects/PROJECT_ID/executions/EXECUTION_ID
+
+# Get execution events (replace PROJECT_ID and EXECUTION_ID)
+curl http://localhost:3000/api/projects/PROJECT_ID/executions/EXECUTION_ID/events
 ```
 
 ## Design Decisions
 
-### In-Memory State
+### Database Persistence
 
-Currently, all state is stored in-memory within the service classes. This is intentional:
+All state is persisted to SQLite using Prisma ORM:
 
-- **Simplicity**: No database setup required for initial development
-- **Clarity**: Easy to understand and modify business logic
-- **Temporary**: Will be replaced with proper database persistence (PostgreSQL or similar)
+- **Production-Ready**: State survives server restarts
+- **Type Safety**: Prisma provides fully typed database access
+- **Migrations**: Schema changes are tracked and versioned
+- **Development First**: SQLite requires no setup, will migrate to PostgreSQL for production
+- **Performance**: Indexed queries on frequently accessed fields (projectId, status, createdAt)
 
 ### Service Layer
 
@@ -404,39 +460,41 @@ Custom error classes (`AppError`, `NotFoundError`, etc.) provide:
 
 Planned implementations (in rough order):
 
-1. **Database Integration**
-   - PostgreSQL with proper migrations
-   - Connection pooling
-   - Transaction support
+1. **AI Agent Integration**
+   - Replace simulated task processing with real AI orchestration
+   - Integrate with Claude API or similar
+   - Implement code generation capabilities
+   - Workspace management (git operations, file I/O)
 
-2. **Authentication & Authorization**
+2. **Database Migration to PostgreSQL**
+   - Migrate from SQLite to PostgreSQL for production
+   - Connection pooling
+   - Transaction support for complex operations
+
+3. **Authentication & Authorization**
    - User accounts
    - API keys or JWT tokens
-   - Permission model
-
-3. **Real Execution Engine**
-   - Task queue for background processing
-   - AI agent integration
-   - Workspace management (git operations, file I/O)
-   - Progress tracking and streaming
+   - Permission model (project ownership, collaboration)
 
 4. **Web UI**
    - React or similar modern framework
    - Real-time updates (WebSocket or SSE)
    - Project dashboard
-   - Execution monitoring
+   - Execution monitoring with live event streaming
 
 5. **Observability**
-   - Metrics (execution duration, success rate, etc.)
+   - Metrics (execution duration, success rate, task completion times)
    - Tracing (OpenTelemetry)
-   - Health checks and readiness probes
+   - Enhanced health checks and readiness probes
+   - Performance monitoring
 
 6. **Production Hardening**
    - Rate limiting
    - Request validation middleware
    - CORS configuration
    - Security headers
-   - Graceful degradation
+   - Graceful shutdown and degradation
+   - Error recovery and retry mechanisms
 
 ## Contributing
 
