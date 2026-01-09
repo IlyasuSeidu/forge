@@ -16,26 +16,43 @@ export class ExecutionRunner {
 
   /**
    * Starts an execution and processes all tasks
-   * State transitions: idle → running → completed | failed
+   * State transitions: idle/paused → running → completed | failed | paused
+   * Supports resuming from paused state
    */
   async runExecution(executionId: string): Promise<void> {
     try {
+      // Get current execution state
+      let execution = await prisma.execution.findUnique({
+        where: { id: executionId },
+      });
+
+      if (!execution) {
+        throw new Error(`Execution ${executionId} not found`);
+      }
+
+      // Determine if this is a fresh start or a resume
+      const isResume = execution.status === ExecutionStatus.Paused;
+
       // Mark execution as running
-      const execution = await prisma.execution.update({
+      execution = await prisma.execution.update({
         where: { id: executionId },
         data: {
           status: ExecutionStatus.Running,
-          startedAt: new Date(),
+          startedAt: execution.startedAt ?? new Date(),
         },
       });
 
       this.logger.info(
-        { executionId, projectId: execution.projectId },
-        'Execution started'
+        { executionId, projectId: execution.projectId, isResume },
+        isResume ? 'Execution resumed' : 'Execution started'
       );
 
-      // Emit execution_started event
-      await this.emitEvent(executionId, 'execution_started', 'Execution has started');
+      // Emit appropriate event
+      if (isResume) {
+        await this.emitEvent(executionId, 'execution_resumed', 'Execution has resumed');
+      } else {
+        await this.emitEvent(executionId, 'execution_started', 'Execution has started');
+      }
 
       // Fetch all tasks for the project
       const tasks = await prisma.task.findMany({
@@ -50,6 +67,20 @@ export class ExecutionRunner {
 
       // Process each task sequentially
       for (const task of tasks) {
+        // Check if execution was paused before processing next task
+        const currentExecution = await prisma.execution.findUnique({
+          where: { id: executionId },
+        });
+
+        if (currentExecution?.status === ExecutionStatus.Paused) {
+          this.logger.info(
+            { executionId },
+            'Execution paused, stopping task processing'
+          );
+          return; // Stop processing, execution is already marked as paused
+        }
+
+        // Process task (idempotent - skips already completed tasks)
         await this.processTask(executionId, task.id);
       }
 
@@ -97,20 +128,35 @@ export class ExecutionRunner {
   }
 
   /**
-   * Processes a single task
+   * Processes a single task (idempotent)
+   * Skips tasks that are already completed for this execution
    * Simulates task processing with a delay
    */
   private async processTask(executionId: string, taskId: string): Promise<void> {
-    // Mark task as in_progress
-    await prisma.task.update({
-      where: { id: taskId },
-      data: { status: TaskStatus.InProgress },
-    });
-
+    // Fetch current task state
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) {
       throw new Error(`Task ${taskId} not found`);
     }
+
+    // Skip if task was already completed in this or previous execution
+    if (task.status === TaskStatus.Completed && task.finishedAt) {
+      this.logger.info(
+        { executionId, taskId, title: task.title },
+        'Task already completed, skipping'
+      );
+      return;
+    }
+
+    // Mark task as in_progress and associate with this execution
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: TaskStatus.InProgress,
+        executionId,
+        startedAt: new Date(),
+      },
+    });
 
     this.logger.info(
       { executionId, taskId, title: task.title },
@@ -130,7 +176,10 @@ export class ExecutionRunner {
     // Mark task as completed
     await prisma.task.update({
       where: { id: taskId },
-      data: { status: TaskStatus.Completed },
+      data: {
+        status: TaskStatus.Completed,
+        finishedAt: new Date(),
+      },
     });
 
     this.logger.info(

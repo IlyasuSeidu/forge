@@ -15,8 +15,11 @@ Currently implemented:
 - ✅ Domain models (Project, Task, Execution, ExecutionEvent)
 - ✅ **Database persistence (SQLite + Prisma)**
 - ✅ RESTful API endpoints
-- ✅ **Execution state machine (idle → running → completed/failed)**
+- ✅ **Execution state machine (idle → running → paused → completed/failed)**
 - ✅ **Sequential task processing with event logging**
+- ✅ **Pause/resume execution control**
+- ✅ **Crash recovery with automatic state restoration**
+- ✅ **Idempotent task processing**
 - ✅ **Concurrent execution prevention**
 - ✅ Structured logging (Pino)
 - ✅ Centralized error handling
@@ -242,9 +245,11 @@ Start a new execution for a project.
 - Creates a new execution with "idle" status
 - Starts background processing immediately
 - Processes all project tasks sequentially
-- Transitions through states: idle → running → completed/failed
+- Transitions through states: idle → running → paused/completed/failed
 - Logs events at each stage (execution_started, task_started, task_completed, execution_completed)
-- Prevents concurrent executions for the same project (returns 422 if already running)
+- Prevents concurrent executions for the same project (returns 422 if already running or paused)
+- Supports pause/resume for long-running executions
+- Automatically recovers from crashes (marks running executions as paused on startup)
 
 **⚠️ Note**: AI orchestration is simulated with delays. Real AI agent integration is not yet implemented.
 
@@ -313,6 +318,53 @@ Response:
   ]
 }
 ```
+
+**POST /api/projects/:id/executions/:executionId/pause**
+
+Pause a running execution.
+
+**Behavior**:
+- Only allowed if execution status is "running"
+- Stops processing after current task completes
+- Marks execution as "paused"
+- Emits "execution_paused" event
+- Returns 422 if execution is not running
+
+Response:
+```json
+{
+  "id": "770e8400-e29b-41d4-a716-446655440002",
+  "projectId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "paused",
+  "startedAt": "2024-01-15T10:32:00.000Z",
+  "finishedAt": null
+}
+```
+
+**POST /api/projects/:id/executions/:executionId/resume**
+
+Resume a paused execution.
+
+**Behavior**:
+- Only allowed if execution status is "paused"
+- Resumes processing from next incomplete task
+- Skips already-completed tasks (idempotent)
+- Marks execution as "running"
+- Emits "execution_resumed" event
+- Returns 422 if execution is not paused
+
+Response:
+```json
+{
+  "id": "770e8400-e29b-41d4-a716-446655440002",
+  "projectId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "paused",
+  "startedAt": "2024-01-15T10:32:00.000Z",
+  "finishedAt": null
+}
+```
+
+Note: The response shows "paused" status because the execution hasn't transitioned to "running" yet (happens asynchronously).
 
 ### Error Responses
 
@@ -415,6 +467,12 @@ curl http://localhost:3000/api/projects/PROJECT_ID/executions/EXECUTION_ID
 
 # Get execution events (replace PROJECT_ID and EXECUTION_ID)
 curl http://localhost:3000/api/projects/PROJECT_ID/executions/EXECUTION_ID/events
+
+# Pause execution (replace PROJECT_ID and EXECUTION_ID)
+curl -X POST http://localhost:3000/api/projects/PROJECT_ID/executions/EXECUTION_ID/pause
+
+# Resume execution (replace PROJECT_ID and EXECUTION_ID)
+curl -X POST http://localhost:3000/api/projects/PROJECT_ID/executions/EXECUTION_ID/resume
 ```
 
 ## Design Decisions
@@ -428,6 +486,49 @@ All state is persisted to SQLite using Prisma ORM:
 - **Migrations**: Schema changes are tracked and versioned
 - **Development First**: SQLite requires no setup, will migrate to PostgreSQL for production
 - **Performance**: Indexed queries on frequently accessed fields (projectId, status, createdAt)
+
+### Execution Resilience
+
+Forge provides robust execution control and crash recovery:
+
+**Pause/Resume**:
+- Executions can be paused mid-run and resumed later
+- Pause occurs after current task completes (graceful)
+- Resume picks up from next incomplete task
+- All state transitions emit events for observability
+
+**Crash Recovery**:
+- On server startup, detects executions that were running when server crashed
+- Automatically marks crashed executions as "paused"
+- Emits "execution_recovered" events for audit trail
+- Recovered executions can be resumed normally
+
+**Idempotent Task Processing**:
+- Tasks track their execution state (executionId, startedAt, finishedAt)
+- Already-completed tasks are skipped on resume
+- Safe to retry or resume without duplicating work
+- Guarantees at-most-once task completion
+
+**Execution Lifecycle**:
+```
+idle → running → completed
+  ↓       ↓          ↓
+  └─────pause ──────┘
+          ↓
+        resume → running
+          ↓
+    (server crash)
+          ↓
+    execution_recovered
+          ↓
+        paused
+```
+
+**Guarantees**:
+- Only one execution per project can be active (running or paused)
+- No execution is silently lost on server crash
+- All state transitions are logged as events
+- Task processing is sequential and deterministic
 
 ### Service Layer
 

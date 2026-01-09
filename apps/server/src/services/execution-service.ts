@@ -23,17 +23,19 @@ export class ExecutionService {
    * Ensures only one execution can run at a time for a project
    */
   async startExecution(projectId: string): Promise<Execution> {
-    // Check if there's already a running execution for this project
-    const runningExecution = await prisma.execution.findFirst({
+    // Check if there's already a running or paused execution for this project
+    const activeExecution = await prisma.execution.findFirst({
       where: {
         projectId,
-        status: ExecutionStatus.Running,
+        status: {
+          in: [ExecutionStatus.Running, ExecutionStatus.Paused],
+        },
       },
     });
 
-    if (runningExecution) {
+    if (activeExecution) {
       throw new BusinessRuleError(
-        `Cannot start execution: project already has a running execution (${runningExecution.id})`
+        `Cannot start execution: project already has an active execution (${activeExecution.id}, status: ${activeExecution.status})`
       );
     }
 
@@ -97,5 +99,129 @@ export class ExecutionService {
     });
 
     return events;
+  }
+
+  /**
+   * Pauses a running execution
+   * Only allowed if execution is currently running
+   */
+  async pauseExecution(executionId: string): Promise<Execution> {
+    const execution = await prisma.execution.findUnique({
+      where: { id: executionId },
+    });
+
+    if (!execution) {
+      throw new BusinessRuleError(`Execution ${executionId} not found`);
+    }
+
+    if (execution.status !== ExecutionStatus.Running) {
+      throw new BusinessRuleError(
+        `Cannot pause execution: execution is not running (current status: ${execution.status})`
+      );
+    }
+
+    // Mark execution as paused
+    const pausedExecution = await prisma.execution.update({
+      where: { id: executionId },
+      data: {
+        status: ExecutionStatus.Paused,
+      },
+    });
+
+    // Emit pause event
+    await prisma.executionEvent.create({
+      data: {
+        id: crypto.randomUUID(),
+        executionId,
+        type: 'execution_paused',
+        message: 'Execution has been paused',
+      },
+    });
+
+    this.logger.info({ executionId }, 'Execution paused');
+
+    return pausedExecution;
+  }
+
+  /**
+   * Resumes a paused execution
+   * Only allowed if execution is currently paused
+   */
+  async resumeExecution(executionId: string): Promise<Execution> {
+    const execution = await prisma.execution.findUnique({
+      where: { id: executionId },
+    });
+
+    if (!execution) {
+      throw new BusinessRuleError(`Execution ${executionId} not found`);
+    }
+
+    if (execution.status !== ExecutionStatus.Paused) {
+      throw new BusinessRuleError(
+        `Cannot resume execution: execution is not paused (current status: ${execution.status})`
+      );
+    }
+
+    this.logger.info({ executionId }, 'Resuming execution');
+
+    // Resume execution in background (non-blocking)
+    setImmediate(() => {
+      this.runner.runExecution(executionId).catch((error) => {
+        this.logger.error(
+          { executionId, error },
+          'Execution runner failed during resume'
+        );
+      });
+    });
+
+    // Return the execution (will be marked as running by the runner)
+    return execution;
+  }
+
+  /**
+   * Recovers any executions that were running when the server crashed
+   * Should be called on server startup
+   */
+  async recoverCrashedExecutions(): Promise<void> {
+    const runningExecutions = await prisma.execution.findMany({
+      where: {
+        status: ExecutionStatus.Running,
+      },
+    });
+
+    if (runningExecutions.length === 0) {
+      this.logger.info('No crashed executions to recover');
+      return;
+    }
+
+    this.logger.info(
+      { count: runningExecutions.length },
+      'Recovering crashed executions'
+    );
+
+    for (const execution of runningExecutions) {
+      // Mark execution as paused
+      await prisma.execution.update({
+        where: { id: execution.id },
+        data: {
+          status: ExecutionStatus.Paused,
+        },
+      });
+
+      // Emit recovery event
+      await prisma.executionEvent.create({
+        data: {
+          id: crypto.randomUUID(),
+          executionId: execution.id,
+          type: 'execution_recovered',
+          message: 'Execution recovered after server restart',
+        },
+      });
+
+      this.logger.info(
+        { executionId: execution.id, projectId: execution.projectId },
+        'Execution recovered and paused'
+      );
+    }
   }
 }

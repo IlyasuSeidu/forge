@@ -105,5 +105,10 @@ export async function createServer() {
     { prefix: '/api' }
   );
 
+  // Crash recovery: recover any executions that were running when server crashed
+  fastify.addHook('onReady', async () => {
+    await executionService.recoverCrashedExecutions();
+  });
+
   return fastify;
 }

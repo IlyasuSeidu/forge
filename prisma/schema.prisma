@@ -21,17 +21,21 @@ model Project {
 }
 
 model Task {
-  id          String   @id
+  id          String    @id
   projectId   String
   title       String
   description String
-  status      String   @default("pending")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status      String    @default("pending")
+  executionId String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([status])
+  @@index([executionId])
 }
 
 model Execution {

@@ -96,4 +96,68 @@ export async function executionRoutes(
       return { events };
     }
   );
+
+  /**
+   * POST /projects/:id/executions/:executionId/pause
+   * Pauses a running execution
+   */
+  fastify.post<{ Params: { id: string; executionId: string } }>(
+    '/projects/:id/executions/:executionId/pause',
+    async (request) => {
+      const { id: projectId, executionId } = request.params;
+
+      // Verify project exists
+      if (!(await projectService.projectExists(projectId))) {
+        throw new NotFoundError('Project', projectId);
+      }
+
+      // Verify execution exists and belongs to project
+      const execution = await executionService.getExecutionById(executionId);
+
+      if (!execution) {
+        throw new NotFoundError('Execution', executionId);
+      }
+
+      if (execution.projectId !== projectId) {
+        throw new NotFoundError('Execution', executionId);
+      }
+
+      // Pause execution
+      const pausedExecution = await executionService.pauseExecution(executionId);
+
+      return pausedExecution;
+    }
+  );
+
+  /**
+   * POST /projects/:id/executions/:executionId/resume
+   * Resumes a paused execution
+   */
+  fastify.post<{ Params: { id: string; executionId: string } }>(
+    '/projects/:id/executions/:executionId/resume',
+    async (request) => {
+      const { id: projectId, executionId } = request.params;
+
+      // Verify project exists
+      if (!(await projectService.projectExists(projectId))) {
+        throw new NotFoundError('Project', projectId);
+      }
+
+      // Verify execution exists and belongs to project
+      const execution = await executionService.getExecutionById(executionId);
+
+      if (!execution) {
+        throw new NotFoundError('Execution', executionId);
+      }
+
+      if (execution.projectId !== projectId) {
+        throw new NotFoundError('Execution', executionId);
+      }
+
+      // Resume execution
+      const resumedExecution = await executionService.resumeExecution(executionId);
+
+      return resumedExecution;
+    }
+  );
 }
