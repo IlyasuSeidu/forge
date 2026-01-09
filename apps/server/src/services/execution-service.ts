@@ -342,4 +342,11 @@ export class ExecutionService {
       );
     }
   }
+
+  /**
+   * Get Prisma client for other services
+   */
+  getPrismaClient() {
+    return prisma;
+  }
 }
