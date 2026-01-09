@@ -4,7 +4,7 @@ import type { Execution, ExecutionEvent } from '../models/index.js';
 import { ExecutionStatus, ApprovalType } from '../models/index.js';
 import { prisma } from '../lib/prisma.js';
 import { ExecutionRunner } from './execution-runner.js';
-import { AgentRegistry } from '../agents/index.js';
+import { AgentRegistry, ClaudeAgent } from '../agents/index.js';
 import { ApprovalService } from './approval-service.js';
 import { BusinessRuleError } from '../utils/errors.js';
 
@@ -21,8 +21,15 @@ export class ExecutionService {
     this.logger = logger.child({ service: 'ExecutionService' });
     this.agentRegistry = new AgentRegistry();
     this.approvalService = new ApprovalService(logger);
-    // Note: Register custom agents here when implementing AI integration
-    // Example: this.agentRegistry.registerAgent(new ClaudeAgent());
+
+    // Register AI agents with higher priority than DefaultAgent
+    // ClaudeAgent will be used if ANTHROPIC_API_KEY is set and task matches criteria
+    const claudeAgent = new ClaudeAgent(logger);
+    this.agentRegistry.registerAgent(claudeAgent);
+    this.logger.info(
+      { claudeEnabled: claudeAgent.canHandle({ title: 'test code', description: '' } as any) },
+      'Agent registry configured'
+    );
 
     this.runner = new ExecutionRunner(logger, this.agentRegistry);
   }

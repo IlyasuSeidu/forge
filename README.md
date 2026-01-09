@@ -17,13 +17,14 @@ Currently implemented:
 - ✅ RESTful API endpoints
 - ✅ **Execution state machine (idle → pending_approval → running → paused → completed/failed)**
 - ✅ **Human-in-the-Loop (HITL) approval controls**
+- ✅ **AI Agent Integration (ClaudeAgent via Anthropic API)**
 - ✅ **Sequential task processing with event logging**
 - ✅ **Pause/resume execution control**
 - ✅ **Crash recovery with automatic state restoration**
 - ✅ **Idempotent task processing**
 - ✅ **Concurrent execution prevention**
 - ✅ **Agent abstraction layer** (clean boundary for task execution)
-- ✅ **Pluggable agent system** (DefaultAgent for simulation)
+- ✅ **Pluggable agent system** (ClaudeAgent + DefaultAgent)
 - ✅ **Workspace isolation** (per-project isolated directories)
 - ✅ **Artifact tracking** (database + filesystem)
 - ✅ **Path validation** (prevents directory traversal attacks)
@@ -32,9 +33,9 @@ Currently implemented:
 - ✅ Centralized error handling
 
 Not yet implemented:
-- ❌ AI agent integration (architecture ready, not yet connected)
 - ❌ Authentication & authorization
-- ❌ Real code generation
+- ❌ Advanced code analysis and refactoring
+- ❌ Multi-agent coordination
 
 ## Architecture
 
@@ -47,6 +48,7 @@ Not yet implemented:
 - **Framework**: Fastify
 - **Database**: SQLite (development) + Prisma ORM
 - **Logging**: Pino
+- **AI Integration**: Anthropic SDK (Claude AI)
 
 **Frontend:**
 - **Framework**: React 18 + TypeScript
@@ -777,7 +779,8 @@ Every agent receives full context about the execution:
 - New agents can be registered without modifying ExecutionRunner
 
 **Current Agents**:
-- **DefaultAgent**: Simulates task execution with delays (placeholder until AI integration)
+- **ClaudeAgent**: Uses Claude AI via Anthropic API for real code generation (requires ANTHROPIC_API_KEY)
+- **DefaultAgent**: Simulates task execution with delays (fallback when Claude unavailable)
 - **TestFailingAgent**: For testing failure scenarios (development only)
 
 **Event Flow**:
@@ -794,6 +797,127 @@ This means:
 - Can run multiple specialized agents for different task types
 - Human-in-the-loop is just another agent type
 - Testing doesn't require AI calls
+
+### AI Integration (ClaudeAgent)
+
+Forge integrates Claude AI as a real autonomous agent while maintaining strict safety controls. This is Phase 7 of the Forge architecture.
+
+**⚠️ IMPORTANT DISCLAIMERS**:
+- AI agents can produce incorrect, incomplete, or non-functional code
+- Generated code may have security vulnerabilities or bugs
+- ALWAYS review AI-generated code before deploying to production
+- Claude operates within a strict sandbox and cannot access external resources
+- AI behavior is non-deterministic and may vary between executions
+- Forge provides safety rails but cannot guarantee AI output quality
+
+**How ClaudeAgent Works**:
+
+1. **Task Matching**: ClaudeAgent activates when task title/description contains keywords like:
+   - code, app, api, feature, ui, function, class, server, client, build, create, implement, develop, write
+
+2. **Prompt Construction**: Builds a strict prompt with:
+   - Task details (title, description)
+   - Workspace constraints (only create files, no shell access, no network)
+   - Safety rules (stop if unsure, no capability bypass attempts)
+   - Structured JSON output format requirement
+
+3. **AI Execution**: Calls Claude API via Anthropic SDK with temperature=0.7
+
+4. **Response Parsing**: Expects JSON response with:
+   ```json
+   {
+     "reasoning": "Why I'm doing this",
+     "files": [
+       {
+         "path": "relative/path/file.ts",
+         "content": "file content",
+         "type": "file"
+       }
+     ],
+     "success": true,
+     "message": "Task completed"
+   }
+   ```
+
+5. **Safe File Operations**: Uses WorkspaceService to create files (sandbox enforced)
+
+6. **Result Reporting**: Returns AgentResult with success/failure and metadata
+
+**Safety Boundaries**:
+- ✅ **Workspace Isolation**: Claude can ONLY create files in project workspace
+- ✅ **No Shell Execution**: Cannot run bash commands or execute code
+- ✅ **No Network Access**: Cannot make HTTP requests or connect to databases
+- ✅ **No Package Installation**: Cannot install npm/pip/etc dependencies
+- ✅ **Approval Required**: All executions require human approval before starting
+- ✅ **Audit Trail**: All AI actions logged as execution events
+- ✅ **Graceful Degradation**: Falls back to DefaultAgent if Claude unavailable
+
+**Configuration**:
+
+Enable ClaudeAgent by setting environment variable:
+```bash
+export ANTHROPIC_API_KEY=your_api_key_here
+```
+
+Get API key from: https://console.anthropic.com/
+
+Optional: Override Claude model (default: claude-3-5-sonnet-20241022):
+```bash
+export CLAUDE_MODEL=claude-3-5-sonnet-20241022
+```
+
+**Observability**:
+
+ClaudeAgent logs:
+- Prompt hash (for deduplication, not full prompt for security)
+- Model used (e.g., claude-3-5-sonnet-20241022)
+- Token usage (input + output tokens)
+- Execution duration (milliseconds)
+- Success/failure outcome
+- Files created count
+
+All logged as structured JSON via Pino logger.
+
+**Example Execution Flow**:
+```
+1. User creates task: "Create a basic Express server"
+2. Execution started, requires approval
+3. User approves execution
+4. ExecutionRunner selects ClaudeAgent (matches "create" + "server")
+5. ClaudeAgent builds prompt with safety constraints
+6. Calls Claude API, receives JSON response
+7. Parses response, validates structure
+8. Creates files via WorkspaceService (e.g., src/server.js)
+9. Returns success with metadata (files created, tokens used)
+10. Task marked completed, execution continues
+```
+
+**Disabling AI**:
+
+If `ANTHROPIC_API_KEY` is not set:
+- ClaudeAgent returns `false` from `canHandle()`
+- All tasks fall back to DefaultAgent (simulation mode)
+- No API calls made, no costs incurred
+- Server logs: "ClaudeService disabled: ANTHROPIC_API_KEY not set"
+
+**Limitations**:
+
+ClaudeAgent cannot:
+- Execute generated code (no runtime validation)
+- Install dependencies (npm, pip, etc.)
+- Access databases or external APIs
+- Read files outside workspace
+- Modify existing files (create-only)
+- Handle multi-step workflows requiring iteration
+
+For complex tasks requiring these capabilities, Forge will need additional agents or human intervention.
+
+**Future Enhancements**:
+- Multi-agent collaboration (Claude + GPT-4 + specialized tools)
+- Iterative refinement (feedback loops)
+- Code validation (syntax checking, linting before commit)
+- Dependency management (package.json generation)
+- File modification support (edit existing files, not just create)
 
 ### Human-in-the-Loop (HITL) Approvals
 
@@ -1055,14 +1179,14 @@ Custom error classes (`AppError`, `NotFoundError`, etc.) provide:
 
 ## What's Next
 
-Phase 6 (HITL approvals) is complete. Next up:
+Phase 7 (AI Integration) is complete. Next up:
 
-1. **AI Agent Integration** (Phase 7)
-   - Replace simulated task processing with real AI orchestration
-   - Integrate with Claude API or similar
-   - Implement code generation capabilities
+1. **Enhanced AI Capabilities**
+   - Multi-turn conversations (iterative refinement)
+   - Code validation and testing (syntax check, linting)
+   - Dependency management (package.json generation)
+   - File modification support (edit existing files)
    - Git operations (clone, commit, push) within workspace
-   - AI agents will inherit approval requirements from HITL system
 
 2. **Task-Level Approvals** (Phase 8)
    - Implement optional task completion approvals
