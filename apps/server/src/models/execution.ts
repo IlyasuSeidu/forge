@@ -5,6 +5,7 @@ import type { Execution as PrismaExecution, ExecutionEvent as PrismaExecutionEve
  */
 export enum ExecutionStatus {
   Idle = 'idle',
+  PendingApproval = 'pending_approval',
   Running = 'running',
   Paused = 'paused',
   Completed = 'completed',

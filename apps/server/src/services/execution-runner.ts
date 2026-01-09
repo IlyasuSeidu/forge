@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { ExecutionStatus, TaskStatus } from '../models/index.js';
 import { AgentRegistry } from '../agents/index.js';
 import type { AgentContext } from '../agents/index.js';
+import { WorkspaceService } from './workspace-service.js';
 import crypto from 'node:crypto';
 
 /**
@@ -32,6 +33,15 @@ export class ExecutionRunner {
 
       if (!execution) {
         throw new Error(`Execution ${executionId} not found`);
+      }
+
+      // Safety check: cannot run execution that's pending approval
+      if (execution.status === ExecutionStatus.PendingApproval) {
+        this.logger.warn(
+          { executionId, status: execution.status },
+          'Cannot run execution: still pending approval'
+        );
+        return;
       }
 
       // Determine if this is a fresh start or a resume
@@ -207,12 +217,28 @@ export class ExecutionRunner {
       throw new Error('Failed to load execution context');
     }
 
+    // Create workspace service for this project
+    const workspaceService = new WorkspaceService(
+      this.logger,
+      task.projectId
+    );
+    await workspaceService.initialize();
+
+    // Build context with workspace methods bound to current execution/task
     const context: AgentContext = {
       project,
       execution,
       task,
       previousEvents,
-      workspacePath: '/tmp/forge-workspace', // Placeholder
+      workspacePath: workspaceService.getWorkspaceRoot(),
+      createDirectory: async (relativePath: string) =>
+        workspaceService.createDirectory(relativePath, executionId, taskId),
+      writeFile: async (relativePath: string, content: string | Buffer) =>
+        workspaceService.writeFile(relativePath, content, executionId, taskId),
+      readFile: async (relativePath: string) =>
+        workspaceService.readFile(relativePath),
+      listArtifacts: async () =>
+        workspaceService.listArtifacts(executionId, taskId),
     };
 
     // Emit agent_execution_started event

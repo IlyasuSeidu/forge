@@ -37,6 +37,26 @@ export async function executionRoutes(
   );
 
   /**
+   * GET /projects/:id/executions
+   * Lists all executions for a project
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/projects/:id/executions',
+    async (request) => {
+      const projectId = request.params.id;
+
+      // Verify project exists
+      if (!(await projectService.projectExists(projectId))) {
+        throw new NotFoundError('Project', projectId);
+      }
+
+      const executions = await executionService.getExecutionsByProjectId(projectId);
+
+      return executions;
+    }
+  );
+
+  /**
    * GET /projects/:id/executions/:executionId
    * Retrieves a specific execution
    */

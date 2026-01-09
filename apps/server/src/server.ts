@@ -4,11 +4,14 @@ import {
   ProjectService,
   TaskService,
   ExecutionService,
+  ApprovalService,
 } from './services/index.js';
 import { healthRoutes } from './routes/health.js';
 import { projectRoutes } from './routes/projects.js';
 import { taskRoutes } from './routes/tasks.js';
 import { executionRoutes } from './routes/executions.js';
+import { artifactRoutes } from './routes/artifacts.js';
+import { approvalRoutes } from './routes/approvals.js';
 
 /**
  * Creates and configures the Fastify server instance
@@ -38,6 +41,7 @@ export async function createServer() {
   // Initialize services (in-memory for now)
   const projectService = new ProjectService();
   const taskService = new TaskService();
+  const approvalService = new ApprovalService(fastify.log);
   const executionService = new ExecutionService(fastify.log);
 
   // Add JSON content type parser
@@ -102,6 +106,15 @@ export async function createServer() {
   await fastify.register(
     async (instance) =>
       executionRoutes(instance, projectService, executionService),
+    { prefix: '/api' }
+  );
+  await fastify.register(
+    async (instance) => artifactRoutes(instance, projectService),
+    { prefix: '/api' }
+  );
+  await fastify.register(
+    async (instance) =>
+      approvalRoutes(instance, projectService, approvalService, executionService),
     { prefix: '/api' }
   );
 

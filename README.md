@@ -12,10 +12,11 @@ Forge is a backend-first platform designed to orchestrate autonomous AI agents t
 
 Currently implemented:
 - ✅ Core backend API server (Fastify + TypeScript)
-- ✅ Domain models (Project, Task, Execution, ExecutionEvent)
+- ✅ Domain models (Project, Task, Execution, ExecutionEvent, Artifact, Approval)
 - ✅ **Database persistence (SQLite + Prisma)**
 - ✅ RESTful API endpoints
-- ✅ **Execution state machine (idle → running → paused → completed/failed)**
+- ✅ **Execution state machine (idle → pending_approval → running → paused → completed/failed)**
+- ✅ **Human-in-the-Loop (HITL) approval controls**
 - ✅ **Sequential task processing with event logging**
 - ✅ **Pause/resume execution control**
 - ✅ **Crash recovery with automatic state restoration**
@@ -23,25 +24,35 @@ Currently implemented:
 - ✅ **Concurrent execution prevention**
 - ✅ **Agent abstraction layer** (clean boundary for task execution)
 - ✅ **Pluggable agent system** (DefaultAgent for simulation)
+- ✅ **Workspace isolation** (per-project isolated directories)
+- ✅ **Artifact tracking** (database + filesystem)
+- ✅ **Path validation** (prevents directory traversal attacks)
+- ✅ **Web UI with approval interface** (React + Vite + Tailwind CSS)
 - ✅ Structured logging (Pino)
 - ✅ Centralized error handling
 
 Not yet implemented:
 - ❌ AI agent integration (architecture ready, not yet connected)
 - ❌ Authentication & authorization
-- ❌ Web UI
 - ❌ Real code generation
 
 ## Architecture
 
 ### Technology Stack
 
+**Backend:**
 - **Runtime**: Node.js 18+
 - **Language**: TypeScript (strict mode)
 - **Package Manager**: npm (with workspaces)
 - **Framework**: Fastify
 - **Database**: SQLite (development) + Prisma ORM
 - **Logging**: Pino
+
+**Frontend:**
+- **Framework**: React 18 + TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **Routing**: React Router 6
 
 ### Why Fastify?
 
@@ -120,9 +131,43 @@ Represents a single run of the autonomous agent system.
 {
   id: string;              // UUID
   projectId: string;       // Foreign key to Project
-  status: ExecutionStatus; // idle | running | completed | failed
+  status: ExecutionStatus; // idle | pending_approval | running | paused | completed | failed
   startedAt: Date | null;
   finishedAt: Date | null;
+}
+```
+
+### Approval
+
+Represents a human approval checkpoint before critical actions.
+
+```typescript
+{
+  id: string;              // UUID
+  projectId: string;       // Foreign key to Project
+  executionId: string;     // Foreign key to Execution
+  taskId: string | null;   // Foreign key to Task (optional, for task-level approvals)
+  type: ApprovalType;      // execution_start | task_completion
+  status: ApprovalStatus;  // pending | approved | rejected
+  reason: string | null;   // Optional rejection/approval reason
+  createdAt: Date;
+  resolvedAt: Date | null; // When approval was approved/rejected
+}
+```
+
+### Artifact
+
+Represents a file or directory created by agents in the workspace.
+
+```typescript
+{
+  id: string;              // UUID
+  projectId: string;       // Foreign key to Project
+  executionId: string | null;  // Execution that created it
+  taskId: string | null;   // Task that created it
+  path: string;            // Relative path within workspace
+  type: 'file' | 'directory';
+  createdAt: Date;
 }
 ```
 
@@ -243,13 +288,14 @@ Response:
 
 Start a new execution for a project.
 
-**Current Behavior**:
-- Creates a new execution with "idle" status
-- Starts background processing immediately
-- Processes all project tasks sequentially
-- Transitions through states: idle → running → paused/completed/failed
-- Logs events at each stage (execution_started, task_started, task_completed, execution_completed)
-- Prevents concurrent executions for the same project (returns 422 if already running or paused)
+**Current Behavior (with HITL approvals)**:
+- Creates a new execution with "pending_approval" status
+- Creates an approval request of type "execution_start"
+- Emits "approval_requested" event
+- Execution does NOT start until approved
+- Prevents concurrent executions for the same project (returns 422 if already active)
+- Once approved, transitions to running and processes all project tasks sequentially
+- If rejected, marks execution as "failed" with appropriate event
 - Supports pause/resume for long-running executions
 - Automatically recovers from crashes (marks running executions as paused on startup)
 
@@ -260,8 +306,8 @@ Response (201):
 {
   "id": "770e8400-e29b-41d4-a716-446655440002",
   "projectId": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "running",
-  "startedAt": "2024-01-15T10:32:00.000Z",
+  "status": "pending_approval",
+  "startedAt": null,
   "finishedAt": null
 }
 ```
@@ -368,6 +414,133 @@ Response:
 
 Note: The response shows "paused" status because the execution hasn't transitioned to "running" yet (happens asynchronously).
 
+### Artifacts
+
+**GET /api/projects/:id/artifacts**
+
+List all artifacts for a project.
+
+Query Parameters:
+- `executionId` (optional) - Filter by execution ID
+- `taskId` (optional) - Filter by task ID
+
+Response:
+```json
+[
+  {
+    "id": "cc0e8400-e29b-41d4-a716-446655440007",
+    "projectId": "550e8400-e29b-41d4-a716-446655440000",
+    "executionId": "770e8400-e29b-41d4-a716-446655440002",
+    "taskId": "660e8400-e29b-41d4-a716-446655440001",
+    "path": "task-660e8400/output.json",
+    "type": "file",
+    "createdAt": "2024-01-15T10:32:00.500Z"
+  }
+]
+```
+
+**GET /api/projects/:id/executions/:executionId/artifacts**
+
+List all artifacts created during a specific execution.
+
+Query Parameters:
+- `taskId` (optional) - Filter by task ID
+
+Response: Same format as above
+
+### Approvals
+
+**GET /api/projects/:id/approvals**
+
+List all approvals for a project.
+
+Response:
+```json
+{
+  "approvals": [
+    {
+      "id": "dd0e8400-e29b-41d4-a716-446655440008",
+      "projectId": "550e8400-e29b-41d4-a716-446655440000",
+      "executionId": "770e8400-e29b-41d4-a716-446655440002",
+      "taskId": null,
+      "type": "execution_start",
+      "status": "pending",
+      "reason": null,
+      "createdAt": "2024-01-15T10:32:00.000Z",
+      "resolvedAt": null
+    }
+  ]
+}
+```
+
+**POST /api/approvals/:approvalId/approve**
+
+Approve an approval and trigger the associated action.
+
+Request (optional):
+```json
+{
+  "reason": "Looks good, approved for deployment"
+}
+```
+
+**Behavior**:
+- Marks approval as "approved"
+- Sets resolvedAt timestamp
+- If approval type is "execution_start", starts the execution
+- Emits "approval_approved" event
+- Idempotent: can be called multiple times, returns same result
+- Returns 422 if approval is already rejected
+
+Response:
+```json
+{
+  "id": "dd0e8400-e29b-41d4-a716-446655440008",
+  "projectId": "550e8400-e29b-41d4-a716-446655440000",
+  "executionId": "770e8400-e29b-41d4-a716-446655440002",
+  "taskId": null,
+  "type": "execution_start",
+  "status": "approved",
+  "reason": "Looks good, approved for deployment",
+  "createdAt": "2024-01-15T10:32:00.000Z",
+  "resolvedAt": "2024-01-15T10:33:00.000Z"
+}
+```
+
+**POST /api/approvals/:approvalId/reject**
+
+Reject an approval and prevent the associated action.
+
+Request (optional):
+```json
+{
+  "reason": "Too risky, needs more review"
+}
+```
+
+**Behavior**:
+- Marks approval as "rejected"
+- Sets resolvedAt timestamp
+- If approval type is "execution_start", marks execution as "failed"
+- Emits "approval_rejected" event
+- Idempotent: can be called multiple times, returns same result
+- Returns 422 if approval is already approved
+
+Response:
+```json
+{
+  "id": "dd0e8400-e29b-41d4-a716-446655440008",
+  "projectId": "550e8400-e29b-41d4-a716-446655440000",
+  "executionId": "770e8400-e29b-41d4-a716-446655440002",
+  "taskId": null,
+  "type": "execution_start",
+  "status": "rejected",
+  "reason": "Too risky, needs more review",
+  "createdAt": "2024-01-15T10:32:00.000Z",
+  "resolvedAt": "2024-01-15T10:33:00.000Z"
+}
+```
+
 ### Error Responses
 
 All errors follow a consistent format:
@@ -410,12 +583,26 @@ npm run typecheck
 
 ### Development
 
+**Backend Server:**
 ```bash
-# Start development server with hot reload
+# Start backend server with hot reload
 npm run dev
 
 # Server will be available at http://localhost:3000
 ```
+
+**Web UI:**
+```bash
+# In a separate terminal, start the web UI
+cd apps/web
+npm install
+npm run dev
+
+# Web UI will be available at http://localhost:5173
+# API requests are automatically proxied to http://localhost:3001
+```
+
+The Web UI provides a read-only dashboard for monitoring projects, executions, and artifacts.
 
 ### Production Build
 
@@ -475,6 +662,28 @@ curl -X POST http://localhost:3000/api/projects/PROJECT_ID/executions/EXECUTION_
 
 # Resume execution (replace PROJECT_ID and EXECUTION_ID)
 curl -X POST http://localhost:3000/api/projects/PROJECT_ID/executions/EXECUTION_ID/resume
+
+# List all artifacts for a project (replace PROJECT_ID)
+curl http://localhost:3000/api/projects/PROJECT_ID/artifacts
+
+# List artifacts for a specific execution (replace PROJECT_ID and EXECUTION_ID)
+curl http://localhost:3000/api/projects/PROJECT_ID/executions/EXECUTION_ID/artifacts
+
+# Filter artifacts by task (replace PROJECT_ID and TASK_ID)
+curl http://localhost:3000/api/projects/PROJECT_ID/artifacts?taskId=TASK_ID
+
+# List approvals for a project (replace PROJECT_ID)
+curl http://localhost:3000/api/projects/PROJECT_ID/approvals
+
+# Approve an approval (replace APPROVAL_ID)
+curl -X POST http://localhost:3000/api/approvals/APPROVAL_ID/approve \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Approved for execution"}'
+
+# Reject an approval (replace APPROVAL_ID)
+curl -X POST http://localhost:3000/api/approvals/APPROVAL_ID/reject \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Needs more review"}'
 ```
 
 ## Design Decisions
@@ -513,24 +722,26 @@ Forge provides robust execution control and crash recovery:
 
 **Execution Lifecycle**:
 ```
-idle → running → completed
-  ↓       ↓          ↓
-  └─────pause ──────┘
-          ↓
-        resume → running
-          ↓
-    (server crash)
-          ↓
-    execution_recovered
-          ↓
-        paused
+pending_approval → (approved) → idle → running → completed
+        ↓                         ↓       ↓          ↓
+    (rejected)                    └─────pause ──────┘
+        ↓                                 ↓
+      failed                            resume → running
+                                          ↓
+                                    (server crash)
+                                          ↓
+                                    execution_recovered
+                                          ↓
+                                        paused
 ```
 
 **Guarantees**:
-- Only one execution per project can be active (running or paused)
+- Only one execution per project can be active (running, paused, or pending approval)
+- No execution can start without explicit human approval
 - No execution is silently lost on server crash
 - All state transitions are logged as events
 - Task processing is sequential and deterministic
+- Approval decisions are immutable (cannot approve a rejected approval, or vice versa)
 
 ### Agent Abstraction
 
@@ -584,6 +795,237 @@ This means:
 - Human-in-the-loop is just another agent type
 - Testing doesn't require AI calls
 
+### Human-in-the-Loop (HITL) Approvals
+
+Forge implements explicit approval checkpoints before AI agents can perform potentially risky actions. This is a **safety layer** designed to prevent autonomous agents from executing without human oversight.
+
+**Why This Matters**:
+Before adding real AI capabilities, Forge enforces a control mechanism that:
+- Prevents executions from starting without explicit approval
+- Provides clear audit trail of who approved what
+- Allows rejecting potentially dangerous operations
+- Ensures humans remain in control of autonomous systems
+
+**Approval Types**:
+Currently supported:
+- **execution_start**: Required before any execution begins (currently enabled)
+- **task_completion**: Optional approval before marking tasks complete (config flag, not yet implemented)
+
+**Approval Flow**:
+```
+User requests execution
+        ↓
+Execution created (status: pending_approval)
+        ↓
+Approval request created (status: pending)
+        ↓
+approval_requested event emitted
+        ↓
+    [Human Decision]
+        ↓
+   /         \
+Approve     Reject
+   ↓           ↓
+execution    execution
+runs         fails
+```
+
+**Safety Guarantees**:
+- ✅ **No execution without approval**: Executions cannot transition to "running" while pending approval
+- ✅ **Idempotent operations**: Approve/reject can be called multiple times safely
+- ✅ **Immutable decisions**: Once approved, cannot be rejected (and vice versa)
+- ✅ **Audit trail**: All approval actions are logged as execution events
+- ✅ **Server-side enforcement**: Frontend UI cannot bypass approval requirements
+
+**API Design**:
+Approvals are intentionally simple and explicit:
+- `GET /projects/:id/approvals` - List all approvals for a project
+- `POST /approvals/:id/approve` - Approve and trigger action
+- `POST /approvals/:id/reject` - Reject and prevent action
+
+**Execution Lifecycle with Approvals**:
+```
+POST /executions → pending_approval
+        ↓
+POST /approvals/:id/approve → idle → running → completed
+        ↓
+(OR) POST /approvals/:id/reject → failed
+```
+
+**Web UI Integration**:
+The Web UI displays pending approvals prominently with:
+- Yellow highlight for visibility
+- Warning icon to indicate action required
+- Clear "Approve" and "Reject" buttons
+- Execution details (ID, status)
+- Timestamp of approval request
+
+**Future Expansion**:
+The approval system is designed to be extensible:
+- Task-level approvals (before marking tasks complete)
+- Custom approval types (deployment, API access, file operations)
+- Multi-stage approvals (multiple approvers required)
+- Time-based auto-reject (approvals expire)
+- Approval policies (who can approve what)
+
+**Critical Design Decision**:
+HITL approvals are implemented **before** AI integration, not after. This ensures that:
+1. Safety controls are baked into the architecture from day one
+2. AI agents inherit approval requirements by default
+3. No risk of shipping autonomous AI without human oversight
+4. Approval workflow is tested and proven before adding AI
+
+### Workspace & Artifact Layer
+
+Forge provides isolated workspace directories and artifact tracking to ensure agents can safely create, read, and manage files without security risks.
+
+**Why This Matters**:
+- Agents need to create files (code, configs, documentation)
+- Without isolation, agents could access or modify system files
+- Artifact tracking provides audit trail and allows retrieving generated files
+- Path validation prevents directory traversal attacks
+
+**Workspace Isolation**:
+Each project gets its own isolated directory:
+```
+/tmp/forge-workspaces/
+  └── {projectId}/
+      ├── src/
+      ├── config/
+      └── output/
+```
+
+**Security Guarantees**:
+- ✅ **Path Validation**: All file paths are validated before operations
+- ✅ **Traversal Prevention**: Paths like `../../../etc/passwd` are rejected
+- ✅ **Absolute Path Rejection**: Absolute paths are not allowed
+- ✅ **Workspace Confinement**: All paths must resolve within the project workspace
+- ✅ **Empty Path Rejection**: Empty or whitespace-only paths are rejected
+
+**WorkspaceService API**:
+```typescript
+class WorkspaceService {
+  // Initialize workspace directory
+  async initialize(): Promise<void>
+
+  // Create a directory (relative path)
+  async createDirectory(relativePath: string, executionId?, taskId?): Promise<Artifact>
+
+  // Write a file (relative path)
+  async writeFile(relativePath: string, content: string | Buffer, executionId?, taskId?): Promise<Artifact>
+
+  // Read a file (relative path)
+  async readFile(relativePath: string): Promise<string>
+
+  // List artifacts for this project
+  async listArtifacts(executionId?, taskId?): Promise<Artifact[]>
+
+  // Get workspace root path
+  getWorkspaceRoot(): string
+
+  // Clean up workspace (WARNING: destructive)
+  async cleanup(): Promise<void>
+}
+```
+
+**Agent Integration**:
+Agents access workspace through methods on `AgentContext`:
+```typescript
+interface AgentContext {
+  // ... project, execution, task, previousEvents
+  workspacePath: string;
+  createDirectory(relativePath: string): Promise<Artifact>;
+  writeFile(relativePath: string, content: string | Buffer): Promise<Artifact>;
+  readFile(relativePath: string): Promise<string>;
+  listArtifacts(): Promise<Artifact[]>;
+}
+```
+
+**Artifact Tracking**:
+Every file and directory operation is recorded in the database:
+- Associated with project, execution, and task
+- Tracks relative path within workspace
+- Type (file or directory)
+- Creation timestamp
+
+Artifacts can be queried via:
+- `GET /api/projects/:id/artifacts` - All artifacts for a project
+- `GET /api/projects/:id/executions/:executionId/artifacts` - Artifacts from specific execution
+- Supports filtering by `executionId` and `taskId`
+
+**Path Validation Examples**:
+```typescript
+// ✅ ALLOWED - Valid relative paths
+await context.writeFile('src/index.ts', code);
+await context.writeFile('config/app.json', config);
+await context.createDirectory('output/reports');
+
+// ❌ BLOCKED - Directory traversal
+await context.writeFile('../../../etc/passwd', 'hack');  // PathValidationError
+await context.writeFile('/etc/passwd', 'hack');          // PathValidationError
+await context.writeFile('ok/../../etc/passwd', 'hack');  // PathValidationError
+```
+
+**Benefits**:
+- Agents can safely create files without risking system security
+- All file operations are audited in the database
+- Generated artifacts can be retrieved via API
+- Clean separation between different projects
+- Future: Can implement quotas, retention policies, or cloud storage integration
+
+### Web UI with Approval Interface
+
+Forge includes a web-based dashboard for monitoring projects and executions, now with the ability to approve or reject execution requests.
+
+**Technology Stack**:
+- React 18 with TypeScript
+- Vite for fast development and building
+- Tailwind CSS for styling
+- React Router for navigation
+
+**Features**:
+- **Project List**: Browse all projects with names and descriptions
+- **Project Detail**: View tasks, execution history, and pending approvals
+- **Pending Approvals**: Prominently displayed section for approvals requiring action
+- **Approve/Reject Buttons**: First mutating UI feature - approve or reject execution starts
+- **Execution Detail**: Monitor execution progress with event timeline
+- **Auto-Refresh**: Execution details automatically refresh every 3 seconds while running
+- **Artifact Browser**: View all files and directories created by agents
+- **Status Indicators**: Clear visual status badges for executions (including pending_approval), tasks, and approvals
+- **Loading & Error States**: Proper handling of API errors and loading states
+
+**What It Shows**:
+- All projects created in the system
+- Task lists with status (pending, in_progress, completed, failed)
+- Execution history with timestamps
+- Pending approvals with clear visual indicators
+- Real-time event streams (approval_requested, approval_approved, execution_started, etc.)
+- Artifact metadata (paths, types, creation times)
+
+**What It Can Do** (new):
+- ✅ Approve execution starts (transitions execution from pending_approval to running)
+- ✅ Reject execution starts (marks execution as failed)
+
+**What It Does NOT Do**:
+- ❌ Create or edit projects
+- ❌ Create or modify tasks
+- ❌ Start executions directly (requires approval)
+- ❌ Pause or resume executions
+- ❌ Display file contents (only metadata)
+- ❌ Authenticate users (no auth yet)
+
+**Design Philosophy**:
+The UI was initially read-only, but approvals are the **first mutating feature** because:
+- Safety controls are required before AI integration
+- Approvals are low-risk operations (can only affect pending items)
+- Clear separation: monitoring is free, operations require explicit action
+- This establishes patterns for future authenticated mutation features
+
+**API Integration**:
+- All API calls go through a typed client layer ([apps/web/src/api.ts](apps/web/src/api.ts))
+- Development uses Vite proxy to avoid CORS issues
+- Production can configure API URL via `VITE_API_URL` environment variable
+
 ### Service Layer
 
 Business logic is isolated in service classes rather than in route handlers:
@@ -613,37 +1055,45 @@ Custom error classes (`AppError`, `NotFoundError`, etc.) provide:
 
 ## What's Next
 
-Planned implementations (in rough order):
+Phase 6 (HITL approvals) is complete. Next up:
 
-1. **AI Agent Integration**
+1. **AI Agent Integration** (Phase 7)
    - Replace simulated task processing with real AI orchestration
    - Integrate with Claude API or similar
    - Implement code generation capabilities
-   - Workspace management (git operations, file I/O)
+   - Git operations (clone, commit, push) within workspace
+   - AI agents will inherit approval requirements from HITL system
 
-2. **Database Migration to PostgreSQL**
-   - Migrate from SQLite to PostgreSQL for production
-   - Connection pooling
-   - Transaction support for complex operations
+2. **Task-Level Approvals** (Phase 8)
+   - Implement optional task completion approvals
+   - Configuration flag to enable/disable per project
+   - Allows fine-grained control over agent actions
 
 3. **Authentication & Authorization**
    - User accounts
    - API keys or JWT tokens
    - Permission model (project ownership, collaboration)
+   - Approval policies (who can approve what)
 
-4. **Web UI**
-   - React or similar modern framework
+4. **Database Migration to PostgreSQL**
+   - Migrate from SQLite to PostgreSQL for production
+   - Connection pooling
+   - Transaction support for complex operations
+
+5. **Enhanced Web UI**
    - Real-time updates (WebSocket or SSE)
-   - Project dashboard
-   - Execution monitoring with live event streaming
+   - Project creation and editing
+   - Task management
+   - Execution control (start, pause, resume)
+   - File content viewer for artifacts
 
-5. **Observability**
-   - Metrics (execution duration, success rate, task completion times)
+6. **Observability**
+   - Metrics (execution duration, success rate, task completion times, approval response time)
    - Tracing (OpenTelemetry)
    - Enhanced health checks and readiness probes
    - Performance monitoring
 
-6. **Production Hardening**
+7. **Production Hardening**
    - Rate limiting
    - Request validation middleware
    - CORS configuration

@@ -18,6 +18,8 @@ model Project {
   updatedAt   DateTime    @updatedAt
   tasks       Task[]
   executions  Execution[]
+  artifacts   Artifact[]
+  approvals   Approval[]
 }
 
 model Task {
@@ -46,6 +48,7 @@ model Execution {
   finishedAt       DateTime?
   project          Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   events           ExecutionEvent[]
+  approvals        Approval[]
 
   @@index([projectId])
   @@index([status])
@@ -61,4 +64,37 @@ model ExecutionEvent {
 
   @@index([executionId])
   @@index([createdAt])
+}
+
+model Artifact {
+  id          String   @id
+  projectId   String
+  executionId String?
+  taskId      String?
+  path        String
+  type        String
+  createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([executionId])
+  @@index([taskId])
+}
+
+model Approval {
+  id          String    @id
+  projectId   String
+  executionId String
+  taskId      String?
+  type        String
+  status      String    @default("pending")
+  reason      String?
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([executionId])
+  @@index([status])
 }

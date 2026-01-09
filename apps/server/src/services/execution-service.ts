@@ -1,10 +1,11 @@
 import crypto from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Execution, ExecutionEvent } from '../models/index.js';
-import { ExecutionStatus } from '../models/index.js';
+import { ExecutionStatus, ApprovalType } from '../models/index.js';
 import { prisma } from '../lib/prisma.js';
 import { ExecutionRunner } from './execution-runner.js';
 import { AgentRegistry } from '../agents/index.js';
+import { ApprovalService } from './approval-service.js';
 import { BusinessRuleError } from '../utils/errors.js';
 
 /**
@@ -14,10 +15,12 @@ export class ExecutionService {
   private logger: FastifyBaseLogger;
   private runner: ExecutionRunner;
   private agentRegistry: AgentRegistry;
+  private approvalService: ApprovalService;
 
   constructor(logger: FastifyBaseLogger) {
     this.logger = logger.child({ service: 'ExecutionService' });
     this.agentRegistry = new AgentRegistry();
+    this.approvalService = new ApprovalService(logger);
     // Note: Register custom agents here when implementing AI integration
     // Example: this.agentRegistry.registerAgent(new ClaudeAgent());
 
@@ -25,16 +28,16 @@ export class ExecutionService {
   }
 
   /**
-   * Creates and starts a new execution
+   * Creates a new execution and requests approval before starting
    * Ensures only one execution can run at a time for a project
    */
   async startExecution(projectId: string): Promise<Execution> {
-    // Check if there's already a running or paused execution for this project
+    // Check if there's already a running, paused, or pending approval execution for this project
     const activeExecution = await prisma.execution.findFirst({
       where: {
         projectId,
         status: {
-          in: [ExecutionStatus.Running, ExecutionStatus.Paused],
+          in: [ExecutionStatus.Running, ExecutionStatus.Paused, ExecutionStatus.PendingApproval],
         },
       },
     });
@@ -45,31 +48,133 @@ export class ExecutionService {
       );
     }
 
-    // Create new execution
+    // Create new execution with pending_approval status
     const execution = await prisma.execution.create({
       data: {
         id: crypto.randomUUID(),
         projectId,
-        status: ExecutionStatus.Idle,
+        status: ExecutionStatus.PendingApproval,
       },
     });
 
     this.logger.info(
       { executionId: execution.id, projectId },
-      'Execution created, starting runner'
+      'Execution created, awaiting approval'
     );
 
-    // Start execution in background (non-blocking)
-    setImmediate(() => {
-      this.runner.runExecution(execution.id).catch((error) => {
-        this.logger.error(
-          { executionId: execution.id, error },
-          'Execution runner failed'
-        );
-      });
+    // Create approval request
+    const approval = await this.approvalService.createApproval({
+      projectId,
+      executionId: execution.id,
+      type: ApprovalType.ExecutionStart,
+    });
+
+    // Emit approval_requested event
+    await prisma.executionEvent.create({
+      data: {
+        id: crypto.randomUUID(),
+        executionId: execution.id,
+        type: 'approval_requested',
+        message: `Execution start requires approval (approval ID: ${approval.id})`,
+      },
     });
 
     return execution;
+  }
+
+  /**
+   * Handles approval of an execution and starts it
+   * Called by approval resolution logic
+   */
+  async handleExecutionApproval(executionId: string): Promise<void> {
+    const execution = await prisma.execution.findUnique({
+      where: { id: executionId },
+    });
+
+    if (!execution) {
+      throw new BusinessRuleError(`Execution ${executionId} not found`);
+    }
+
+    if (execution.status !== ExecutionStatus.PendingApproval) {
+      this.logger.warn(
+        { executionId, status: execution.status },
+        'Execution is not pending approval, skipping start'
+      );
+      return;
+    }
+
+    this.logger.info({ executionId }, 'Execution approved, starting runner');
+
+    // Transition execution from pending_approval to idle so runner can start it
+    await prisma.execution.update({
+      where: { id: executionId },
+      data: {
+        status: ExecutionStatus.Idle,
+      },
+    });
+
+    // Emit approval_approved event
+    await prisma.executionEvent.create({
+      data: {
+        id: crypto.randomUUID(),
+        executionId,
+        type: 'approval_approved',
+        message: 'Execution start approved',
+      },
+    });
+
+    // Start execution in background (non-blocking)
+    setImmediate(() => {
+      this.runner.runExecution(executionId).catch((error) => {
+        this.logger.error(
+          { executionId, error },
+          'Execution runner failed after approval'
+        );
+      });
+    });
+  }
+
+  /**
+   * Handles rejection of an execution
+   * Called by approval resolution logic
+   */
+  async handleExecutionRejection(executionId: string, reason?: string): Promise<void> {
+    const execution = await prisma.execution.findUnique({
+      where: { id: executionId },
+    });
+
+    if (!execution) {
+      throw new BusinessRuleError(`Execution ${executionId} not found`);
+    }
+
+    if (execution.status !== ExecutionStatus.PendingApproval) {
+      this.logger.warn(
+        { executionId, status: execution.status },
+        'Execution is not pending approval, skipping rejection'
+      );
+      return;
+    }
+
+    this.logger.info({ executionId, reason }, 'Execution rejected');
+
+    // Mark execution as failed
+    await prisma.execution.update({
+      where: { id: executionId },
+      data: {
+        status: ExecutionStatus.Failed,
+        finishedAt: new Date(),
+      },
+    });
+
+    // Emit approval_rejected event
+    await prisma.executionEvent.create({
+      data: {
+        id: crypto.randomUUID(),
+        executionId,
+        type: 'approval_rejected',
+        message: reason ? `Execution start rejected: ${reason}` : 'Execution start rejected',
+      },
+    });
   }
 
   /**
