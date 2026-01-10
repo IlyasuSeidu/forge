@@ -5,6 +5,7 @@ import type { Project, Task, Execution, Approval } from '../types';
 import { Loading } from '../components/Loading';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { StatusBadge } from '../components/StatusBadge';
+import { friendlyApprovalType } from '../utils/friendlyText';
 
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -150,11 +151,34 @@ export function ProjectDetail() {
           </svg>
           Back to Projects
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mt-2">{project.name}</h1>
-        <p className="mt-2 text-gray-600">{project.description}</p>
-        <div className="mt-4 text-sm text-gray-500">
-          Created {new Date(project.createdAt).toLocaleDateString()} • Updated{' '}
-          {new Date(project.updatedAt).toLocaleDateString()}
+        <div className="flex items-start justify-between mt-2">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
+            <p className="mt-2 text-gray-600">{project.description}</p>
+            <div className="mt-4 text-sm text-gray-500">
+              Created {new Date(project.createdAt).toLocaleDateString()} • Updated{' '}
+              {new Date(project.updatedAt).toLocaleDateString()}
+            </div>
+          </div>
+          <Link
+            to={`/projects/${projectId}/build-app`}
+            className="ml-4 inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            Build an App
+          </Link>
         </div>
       </div>
 
@@ -197,30 +221,21 @@ export function ProjectDetail() {
                               />
                             </svg>
                             <h3 className="text-sm font-medium text-gray-900">
-                              {approval.type === 'execution_start'
-                                ? 'Execution Start Approval Required'
-                                : 'Task Completion Approval Required'}
+                              {friendlyApprovalType(approval.type)}
                             </h3>
                           </div>
                           <p className="mt-2 text-sm text-gray-700">
                             {approval.type === 'execution_start' ? (
                               <>
-                                Execution{' '}
-                                <span className="font-mono text-xs">
-                                  {approval.executionId.slice(0, 8)}
-                                </span>{' '}
-                                needs approval to start.
+                                We're ready to start building your app. Click "Approve" to begin!
                                 {execution && (
-                                  <span className="ml-1">
-                                    Status:{' '}
-                                    <span className="font-medium">
-                                      {execution.status}
-                                    </span>
+                                  <span className="ml-2 text-xs text-gray-500">
+                                    (Build ID: {approval.executionId?.slice(0, 8)})
                                   </span>
                                 )}
                               </>
                             ) : (
-                              `Task completion requires approval`
+                              `A task has finished and needs your review before continuing.`
                             )}
                           </p>
                           <p className="mt-1 text-xs text-gray-500">
@@ -257,8 +272,16 @@ export function ProjectDetail() {
       <div className="mb-8">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Tasks</h2>
         {tasks.length === 0 ? (
-          <div className="bg-gray-50 rounded-lg p-6 text-center">
-            <p className="text-gray-500">No tasks defined for this project</p>
+          <div className="bg-gray-50 rounded-lg p-8 text-center">
+            <div className="max-w-md mx-auto">
+              <svg className="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="text-gray-700 font-medium mb-2">No tasks yet</p>
+              <p className="text-sm text-gray-500">
+                Tasks will appear here when you use the "Build an App" feature to create something new.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -292,8 +315,23 @@ export function ProjectDetail() {
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Executions</h2>
         {executions.length === 0 ? (
-          <div className="bg-gray-50 rounded-lg p-6 text-center">
-            <p className="text-gray-500">No executions started yet</p>
+          <div className="bg-gray-50 rounded-lg p-8 text-center">
+            <div className="max-w-md mx-auto">
+              <svg className="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-gray-700 font-medium mb-2">Ready to build something?</p>
+              <p className="text-sm text-gray-500 mb-4">
+                Click the "Build an App" button above to describe what you want to create, and we'll build it for you.
+              </p>
+              <Link
+                to={`/projects/${projectId}/build-app`}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Get Started
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -310,7 +348,7 @@ export function ProjectDetail() {
                         <span className="text-sm font-mono text-gray-500 mr-3">
                           {execution.id.slice(0, 8)}
                         </span>
-                        <StatusBadge status={execution.status} />
+                        <StatusBadge status={execution.status} type="execution" />
                       </div>
                       <div className="mt-2 text-sm text-gray-600">
                         {execution.startedAt && (

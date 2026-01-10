@@ -1,9 +1,11 @@
+import { friendlyExecutionStatus, friendlyTaskStatus } from '../utils/friendlyText';
+
 interface StatusBadgeProps {
   status: string;
   type?: 'execution' | 'task';
 }
 
-export function StatusBadge({ status }: StatusBadgeProps) {
+export function StatusBadge({ status, type }: StatusBadgeProps) {
   const getStatusStyles = () => {
     switch (status) {
       case 'completed':
@@ -30,6 +32,15 @@ export function StatusBadge({ status }: StatusBadgeProps) {
   };
 
   const getStatusLabel = () => {
+    // Use friendly language based on type
+    if (type === 'execution') {
+      return friendlyExecutionStatus(status);
+    }
+    if (type === 'task') {
+      return friendlyTaskStatus(status);
+    }
+
+    // Fallback for no type specified
     if (status === 'in_progress') return 'In Progress';
     if (status === 'pending_approval') return 'Pending Approval';
     return status.charAt(0).toUpperCase() + status.slice(1);

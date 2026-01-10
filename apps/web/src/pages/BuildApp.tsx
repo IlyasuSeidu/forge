@@ -24,6 +24,7 @@ export default function BuildApp() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [previewContent, setPreviewContent] = useState<string>('');
 
   useEffect(() => {
     if (!projectId) return;
@@ -121,11 +122,48 @@ export default function BuildApp() {
     if (!projectId || !selectedRequest?.executionId) return;
 
     try {
-      // Create a simple download link to the artifacts
-      // In a real implementation, this would zip the files
-      alert('Download functionality coming soon! For now, you can view and copy individual files from the artifacts list below.');
+      // For now, download each artifact individually
+      // Future: implement ZIP download on backend
+      const htmlArtifact = artifacts.find(a => a.path === 'index.html');
+
+      if (htmlArtifact) {
+        // Download the main HTML file
+        const url = `/api/projects/${projectId}/executions/${selectedRequest.executionId}/artifacts/${htmlArtifact.path}`;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = htmlArtifact.path;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        alert('No downloadable files found. Check the Build Details page for artifact information.');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to download');
+    }
+  };
+
+  const handlePreviewClick = async () => {
+    if (!projectId || !selectedRequest?.executionId) return;
+
+    try {
+      // Fetch the index.html content
+      const htmlArtifact = artifacts.find(a => a.path === 'index.html');
+      if (!htmlArtifact) {
+        setError('No preview available - index.html not found');
+        return;
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/executions/${selectedRequest.executionId}/artifacts/${htmlArtifact.path}`);
+      if (!response.ok) {
+        throw new Error('Failed to load preview');
+      }
+
+      const content = await response.text();
+      setPreviewContent(content);
+      setShowPreview(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load preview');
     }
   };
 
@@ -310,7 +348,7 @@ export default function BuildApp() {
             </button>
             {artifacts.some(a => a.path === 'index.html') && (
               <button
-                onClick={() => setShowPreview(true)}
+                onClick={handlePreviewClick}
                 className="border border-green-600 text-green-600 px-6 py-2 rounded-lg hover:bg-green-50 font-medium"
               >
                 Preview App
@@ -387,6 +425,7 @@ export default function BuildApp() {
                 className="w-full h-full border border-gray-300 rounded"
                 sandbox="allow-scripts"
                 title="App Preview"
+                srcDoc={previewContent}
               />
             </div>
           </div>

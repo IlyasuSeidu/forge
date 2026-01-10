@@ -100,4 +100,70 @@ export async function artifactRoutes(
 
     return artifacts;
   });
+
+  /**
+   * Get content of a specific artifact
+   */
+  fastify.get<{
+    Params: { id: string; executionId: string; '*': string };
+  }>('/projects/:id/executions/:executionId/artifacts/*', async (request, reply) => {
+    const { id: projectId, executionId } = request.params;
+    const artifactPath = request.params['*'];
+
+    // Verify project exists
+    if (!(await projectService.projectExists(projectId))) {
+      throw new NotFoundError('Project', projectId);
+    }
+
+    // Verify execution exists and belongs to project
+    const execution = await prisma.execution.findUnique({
+      where: { id: executionId },
+    });
+
+    if (!execution || execution.projectId !== projectId) {
+      throw new NotFoundError('Execution', executionId);
+    }
+
+    // Find the artifact
+    const artifact = await prisma.artifact.findFirst({
+      where: {
+        projectId,
+        executionId,
+        path: artifactPath,
+      },
+    });
+
+    if (!artifact) {
+      throw new NotFoundError('Artifact', artifactPath);
+    }
+
+    // Read file content from workspace
+    const { WorkspaceService } = await import('../services/workspace-service.js');
+    const workspaceService = new WorkspaceService(fastify.log, projectId);
+
+    try {
+      const content = await workspaceService.readFile(artifactPath);
+
+      // Set appropriate content type
+      const contentType = artifact.path.endsWith('.html')
+        ? 'text/html'
+        : artifact.path.endsWith('.js')
+        ? 'application/javascript'
+        : artifact.path.endsWith('.css')
+        ? 'text/css'
+        : artifact.path.endsWith('.json')
+        ? 'application/json'
+        : 'text/plain';
+
+      reply.type(contentType);
+      return content;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      fastify.log.error(
+        { projectId, executionId, artifactPath, error: errorMessage },
+        'Failed to read artifact content'
+      );
+      throw new Error(`Failed to read artifact: ${errorMessage}`);
+    }
+  });
 }

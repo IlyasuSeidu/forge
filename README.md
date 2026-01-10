@@ -4,6 +4,119 @@
 
 🔗 **Repository**: [https://github.com/IlyasuSeidu/forge](https://github.com/IlyasuSeidu/forge)
 
+---
+
+## What is Forge?
+
+**In simple terms**: Forge is a tool that lets you describe an app you want to build in plain English, and it uses AI (Claude) to generate the code for you.
+
+Think of it as having a junior developer assistant that can:
+- Write HTML, CSS, and JavaScript for simple web apps
+- Create basic APIs and server code
+- Generate configuration files and documentation
+- Build working prototypes from your descriptions
+
+### For Non-Developers
+
+**If you've never written code before**, Forge can help you:
+- Turn your app ideas into real, working files
+- Learn by seeing how AI builds things
+- Prototype ideas quickly without learning to code first
+- Get a starting point that developers can build on
+
+**What you'll get**:
+- A collection of code files (HTML, JavaScript, CSS, etc.)
+- Files you can open in a web browser (for web apps)
+- A working example you can modify or share with developers
+
+**What you'll need**:
+- A clear idea of what you want to build
+- Patience (building takes 2-5 minutes typically)
+- Basic understanding of files and folders
+- Willingness to experiment
+
+### What Forge Can Do
+
+✅ **Simple Web Apps**: Task managers, calculators, landing pages, forms
+✅ **Static Websites**: Personal sites, portfolios, small business pages
+✅ **Basic APIs**: REST endpoints for simple data operations
+✅ **Prototypes**: Quick mockups of ideas for validation
+✅ **Learning Examples**: See how things are built
+
+### What Forge CANNOT Do
+
+❌ **Complex Applications**: No multi-user systems, databases, or authentication
+❌ **Production-Ready Apps**: Generated code needs review and testing
+❌ **Install Dependencies**: Cannot run `npm install` or setup environments
+❌ **Deploy Your App**: You'll need to upload files to a hosting service yourself
+❌ **Guarantee Quality**: AI can make mistakes, produce bugs, or misunderstand requirements
+
+### Privacy & Safety
+
+**What Forge Knows**:
+- Your app descriptions (prompts you enter)
+- Files it creates for you
+
+**What Forge DOES NOT Access**:
+- Your personal files or folders
+- Your network or internet
+- External databases or services
+- Your computer's system files
+
+**Safety Features**:
+- All files are created in isolated workspaces
+- You must approve before building starts
+- Full audit trail of what was built
+- AI cannot execute code or run commands
+- Generated files are sandboxed
+
+**⚠️ IMPORTANT**: Always review AI-generated code before using it. The AI can produce:
+- Code with bugs or security issues
+- Incomplete or non-functional implementations
+- Code that doesn't match your exact requirements
+
+### Who is Forge For?
+
+**Great for**:
+- Entrepreneurs validating app ideas
+- Designers prototyping user interfaces
+- Students learning web development
+- Hobbyists exploring coding
+- Developers accelerating simple tasks
+
+**Not ideal for**:
+- Mission-critical production applications
+- Apps requiring real-time data or databases
+- Projects with strict security requirements
+- Complex enterprise software
+- Apps that need to run on mobile devices
+
+### Getting Started (Non-Technical)
+
+1. **Run Forge**: Follow the installation steps below
+2. **Open the Web UI**: Visit http://localhost:5173 in your browser
+3. **Create a Project**: Give your project a name
+4. **Click "Build an App"**: Describe what you want in plain English
+5. **Approve the Build**: Review the plan and click "Approve"
+6. **Wait**: Building typically takes 2-5 minutes
+7. **Download Your App**: Get the generated files when complete
+
+**Example Prompts**:
+- "Build a personal task manager with add, edit, and delete features"
+- "Create a simple website for my bakery with menu and contact info"
+- "Make a calculator web app that can add, subtract, multiply, and divide"
+
+**Tips for Better Results**:
+- Be specific about what you want
+- Describe the user interface clearly
+- Mention if you want it to look nice (styling)
+- Start small and iterate
+- Break complex ideas into smaller pieces
+
+---
+
+## For Developers
+
 Forge is a backend-first platform designed to orchestrate autonomous AI agents that transform user ideas into working software. It is built to be production-ready from day one, with a focus on clarity, correctness, and extensibility.
 
 ## Status

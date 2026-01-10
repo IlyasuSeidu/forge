@@ -120,11 +120,13 @@ export function ExecutionDetail() {
         <div className="flex items-start justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Execution {execution.id.slice(0, 8)}
+              Build Progress
             </h1>
-            <p className="text-sm text-gray-500 font-mono mt-1">{execution.id}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Build ID: <span className="font-mono">{execution.id.slice(0, 8)}</span>
+            </p>
           </div>
-          <StatusBadge status={execution.status} />
+          <StatusBadge status={execution.status} type="execution" />
         </div>
 
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -157,10 +159,18 @@ export function ExecutionDetail() {
 
       {/* Events Timeline */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Event Timeline</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Activity Log</h2>
         {events.length === 0 ? (
-          <div className="bg-gray-50 rounded-lg p-6 text-center">
-            <p className="text-gray-500">No events recorded yet</p>
+          <div className="bg-gray-50 rounded-lg p-8 text-center">
+            <div className="max-w-md mx-auto">
+              <svg className="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-gray-700 font-medium mb-2">No activity yet</p>
+              <p className="text-sm text-gray-500">
+                Activity will appear here as we work on your app.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -176,8 +186,8 @@ export function ExecutionDetail() {
                     </div>
                     <div className="ml-3 flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          {event.type.replace(/_/g, ' ')}
+                        <span className="text-xs font-medium text-gray-600">
+                          {getFriendlyEventType(event.type)}
                         </span>
                         <span className="text-xs text-gray-500">
                           {new Date(event.createdAt).toLocaleTimeString()}
@@ -197,7 +207,7 @@ export function ExecutionDetail() {
       {artifacts.length > 0 && (
         <div>
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Artifacts ({artifacts.length})
+            Generated Files ({artifacts.length})
           </h2>
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="divide-y divide-gray-200">
@@ -255,6 +265,21 @@ export function ExecutionDetail() {
       )}
     </div>
   );
+}
+
+function getFriendlyEventType(eventType: string): string {
+  const typeMap: Record<string, string> = {
+    execution_started: 'Started building',
+    execution_completed: 'Build complete',
+    execution_failed: 'Build failed',
+    execution_paused: 'Build paused',
+    task_started: 'Task started',
+    task_completed: 'Task finished',
+    task_failed: 'Task failed',
+    agent_response: 'Progress update',
+  };
+
+  return typeMap[eventType] || eventType.replace(/_/g, ' ');
 }
 
 function getEventIcon(eventType: string) {
