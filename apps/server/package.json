@@ -18,7 +18,8 @@
     "fastify": "^4.26.0",
     "node-html-parser": "^7.0.2",
     "pino": "^8.17.2",
-    "pino-pretty": "^10.3.1"
+    "pino-pretty": "^10.3.1",
+    "playwright": "^1.57.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

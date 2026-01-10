@@ -6,6 +6,7 @@ import {
   ExecutionService,
   ApprovalService,
   AppRequestService,
+  VerificationService,
 } from './services/index.js';
 import { healthRoutes } from './routes/health.js';
 import { projectRoutes } from './routes/projects.js';
@@ -45,6 +46,7 @@ export async function createServer() {
   const taskService = new TaskService();
   const approvalService = new ApprovalService(fastify.log);
   const executionService = new ExecutionService(fastify.log);
+  const verificationService = new VerificationService(fastify.log);
   const appRequestService = new AppRequestService(
     executionService.getPrismaClient(),
     fastify.log,
@@ -133,7 +135,7 @@ export async function createServer() {
   );
   await fastify.register(
     async (instance) =>
-      appRequestRoutes(instance, projectService, appRequestService),
+      appRequestRoutes(instance, projectService, appRequestService, verificationService),
     { prefix: '/api' }
   );
 

@@ -64,10 +64,20 @@ export interface AppRequest {
   id: string;
   projectId: string;
   prompt: string;
-  status: 'pending' | 'planned' | 'building' | 'completed' | 'failed';
+  status: 'pending' | 'planned' | 'building' | 'verifying' | 'verified' | 'verification_failed' | 'completed' | 'failed';
   prdPath: string | null;
   executionId: string | null;
   errorReason: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Verification {
+  id: string;
+  appRequestId: string;
+  executionId: string;
+  status: 'pending' | 'passed' | 'failed';
+  errors: string[] | null;
+  attempt: number;
+  createdAt: string;
 }

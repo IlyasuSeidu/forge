@@ -1,4 +1,4 @@
-import type { Project, Task, Execution, ExecutionEvent, Artifact, Approval, AppRequest } from './types';
+import type { Project, Task, Execution, ExecutionEvent, Artifact, Approval, AppRequest, Verification } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -131,6 +131,25 @@ export const api = {
 
   async createAppRequest(projectId: string, prompt: string): Promise<AppRequest> {
     return postJson(`/projects/${projectId}/app-requests`, { prompt });
+  },
+
+  // Artifact content and download
+  getArtifactUrl(projectId: string, executionId: string, artifactPath: string): string {
+    return `${API_BASE_URL}/projects/${projectId}/executions/${executionId}/artifacts/${artifactPath}`;
+  },
+
+  getDownloadUrl(projectId: string, executionId: string): string {
+    return `${API_BASE_URL}/projects/${projectId}/executions/${executionId}/download`;
+  },
+
+  getPreviewUrl(projectId: string, executionId: string): string {
+    // Preview the index.html file if it exists
+    return `${API_BASE_URL}/projects/${projectId}/executions/${executionId}/artifacts/index.html`;
+  },
+
+  // Verification
+  async getVerification(projectId: string, appRequestId: string): Promise<{ verification: Verification | null }> {
+    return fetchJson(`/projects/${projectId}/app-requests/${appRequestId}/verification`);
   },
 };
 

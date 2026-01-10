@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { ProjectService, AppRequestService } from '../services/index.js';
+import type { ProjectService, AppRequestService, VerificationService } from '../services/index.js';
 import { NotFoundError } from '../utils/errors.js';
 
 /**
@@ -9,7 +9,8 @@ import { NotFoundError } from '../utils/errors.js';
 export async function appRequestRoutes(
   fastify: FastifyInstance,
   projectService: ProjectService,
-  appRequestService: AppRequestService
+  appRequestService: AppRequestService,
+  verificationService: VerificationService
 ) {
   /**
    * POST /projects/:id/app-requests
@@ -102,6 +103,32 @@ export async function appRequestRoutes(
       }
 
       return appRequest;
+    }
+  );
+
+  /**
+   * GET /projects/:id/app-requests/:appRequestId/verification
+   * Get the latest verification for an app request
+   */
+  fastify.get<{ Params: { id: string; appRequestId: string } }>(
+    '/projects/:id/app-requests/:appRequestId/verification',
+    async (request) => {
+      const { id: projectId, appRequestId } = request.params;
+
+      // Verify project exists
+      if (!(await projectService.projectExists(projectId))) {
+        throw new NotFoundError('Project', projectId);
+      }
+
+      // Verify app request exists and belongs to project
+      const appRequest = await appRequestService.getAppRequestById(appRequestId);
+      if (!appRequest || appRequest.projectId !== projectId) {
+        throw new NotFoundError('AppRequest', appRequestId);
+      }
+
+      const verification = await verificationService.getLatestVerification(appRequestId);
+
+      return { verification };
     }
   );
 }

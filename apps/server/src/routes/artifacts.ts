@@ -3,7 +3,6 @@ import { NotFoundError } from '../utils/errors.js';
 import type { ProjectService } from '../services/project-service.js';
 import { prisma } from '../lib/prisma.js';
 import archiver from 'archiver';
-import path from 'node:path';
 
 /**
  * Artifact routes

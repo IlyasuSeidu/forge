@@ -45,7 +45,7 @@ export async function approvalRoutes(
   fastify.post<{
     Params: { approvalId: string };
     Body: { reason?: string };
-  }>('/approvals/:approvalId/approve', async (request, reply) => {
+  }>('/approvals/:approvalId/approve', async (request, _reply) => {
     const { approvalId } = request.params;
     const { reason } = request.body ?? {};
 
@@ -93,7 +93,7 @@ export async function approvalRoutes(
   fastify.post<{
     Params: { approvalId: string };
     Body: { reason?: string };
-  }>('/approvals/:approvalId/reject', async (request, reply) => {
+  }>('/approvals/:approvalId/reject', async (request, _reply) => {
     const { approvalId } = request.params;
     const { reason } = request.body ?? {};
 

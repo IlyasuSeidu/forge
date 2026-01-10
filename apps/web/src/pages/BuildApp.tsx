@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api';
-import type { AppRequest, Artifact } from '../types';
+import type { AppRequest, Artifact, Verification, ExecutionEvent } from '../types';
 import { Loading } from '../components/Loading';
 import { ErrorMessage } from '../components/ErrorMessage';
+import { VerificationPanel } from '../components/VerificationPanel';
 import {
   friendlyAppRequestStatus,
   getEstimatedTime,
@@ -12,12 +13,15 @@ import {
   getCurrentPhase,
   getNextSteps,
   getSoftWarnings,
+  isPhaseFailed,
 } from '../utils/friendlyText';
 
 export default function BuildApp() {
   const { projectId } = useParams<{ projectId: string }>();
   const [selectedRequest, setSelectedRequest] = useState<AppRequest | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [verification, setVerification] = useState<Verification | null>(null);
+  const [events, setEvents] = useState<ExecutionEvent[]>([]);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +34,7 @@ export default function BuildApp() {
     loadData();
     // Auto-refresh every 3 seconds when there's an active request
     const interval = setInterval(() => {
-      if (selectedRequest && ['pending', 'planned', 'building'].includes(selectedRequest.status)) {
+      if (selectedRequest && ['pending', 'planned', 'building', 'verifying'].includes(selectedRequest.status)) {
         loadData();
       }
     }, 3000);
@@ -52,6 +56,20 @@ export default function BuildApp() {
           const arts = await api.getExecutionArtifacts(projectId, latest.executionId);
           setArtifacts(arts);
         }
+
+        // Load verification and events if there's an execution
+        if (latest.executionId) {
+          try {
+            const { verification: verif } = await api.getVerification(projectId, latest.id);
+            setVerification(verif);
+
+            const { events: evts } = await api.getExecutionEvents(projectId, latest.executionId);
+            setEvents(evts);
+          } catch (err) {
+            // Verification might not exist yet, that's ok
+            console.log('Verification not loaded:', err);
+          }
+        }
       } else if (selectedRequest) {
         // Update selected request
         const updated = requests.find(r => r.id === selectedRequest.id);
@@ -62,6 +80,20 @@ export default function BuildApp() {
           if (updated.status === 'completed' && updated.executionId) {
             const arts = await api.getExecutionArtifacts(projectId, updated.executionId);
             setArtifacts(arts);
+          }
+
+          // Load verification and events if there's an execution
+          if (updated.executionId) {
+            try {
+              const { verification: verif } = await api.getVerification(projectId, updated.id);
+              setVerification(verif);
+
+              const { events: evts } = await api.getExecutionEvents(projectId, updated.executionId);
+              setEvents(evts);
+            } catch (err) {
+              // Verification might not exist yet, that's ok
+              console.log('Verification not loaded:', err);
+            }
           }
         }
       }
@@ -153,6 +185,33 @@ export default function BuildApp() {
     }
   };
 
+  const handleDownloadAnyway = () => {
+    if (!projectId || !selectedRequest?.executionId) return;
+
+    const confirmed = window.confirm(
+      '⚠️ Warning: This app has known issues that may prevent it from working correctly.\n\n' +
+      'Are you sure you want to download it anyway?'
+    );
+
+    if (confirmed) {
+      handleDownload();
+    }
+  };
+
+  const handleRestartBuild = () => {
+    // Clear the current request and allow user to submit new prompt
+    setSelectedRequest(null);
+    setVerification(null);
+    setEvents([]);
+    setArtifacts([]);
+    setPrompt('');
+  };
+
+  const handleAcknowledge = () => {
+    // Just close/acknowledge - user can navigate away or start new build
+    alert('Acknowledged. You can start a new build below or navigate to your project.');
+  };
+
   if (loading) return <Loading message="Loading..." />;
   if (error && !selectedRequest) return <ErrorMessage title="Error" message={error} />;
 
@@ -188,39 +247,55 @@ export default function BuildApp() {
         <div className="mb-8 bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">Progress</h2>
           <div className="flex items-center justify-between">
-            {buildPhases.map((phase, index) => (
-              <div key={phase.id} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${
-                      getCurrentPhaseIndex(currentPhase) >= index
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 text-gray-400'
-                    }`}
-                  >
-                    {phase.icon}
+            {buildPhases.map((phase, index) => {
+              const currentPhaseIdx = getCurrentPhaseIndex(currentPhase);
+              const isCompleted = currentPhaseIdx > index;
+              const isCurrent = currentPhaseIdx === index;
+              const isFailed = isPhaseFailed(selectedRequest.status, phase.id);
+
+              let phaseColor = 'bg-gray-200 text-gray-400'; // Pending
+              if (isFailed) {
+                phaseColor = 'bg-red-500 text-white'; // Failed
+              } else if (isCompleted || isCurrent) {
+                phaseColor = 'bg-blue-500 text-white'; // Completed or in progress
+              }
+
+              return (
+                <div key={phase.id} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center flex-1">
+                    <div
+                      className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${phaseColor}`}
+                    >
+                      {phase.icon}
+                    </div>
+                    <span className={`mt-2 text-sm font-medium ${isFailed ? 'text-red-600' : 'text-gray-700'}`}>
+                      {phase.label}
+                    </span>
                   </div>
-                  <span className="mt-2 text-sm font-medium text-gray-700">{phase.label}</span>
+                  {index < buildPhases.length - 1 && (
+                    <div
+                      className={`h-1 flex-1 mx-2 ${
+                        isFailed
+                          ? 'bg-red-500'
+                          : isCompleted
+                          ? 'bg-blue-500'
+                          : 'bg-gray-200'
+                      }`}
+                    />
+                  )}
                 </div>
-                {index < buildPhases.length - 1 && (
-                  <div
-                    className={`h-1 flex-1 mx-2 ${
-                      getCurrentPhaseIndex(currentPhase) > index
-                        ? 'bg-blue-500'
-                        : 'bg-gray-200'
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="mt-4 text-center">
             <p className="text-lg font-medium text-gray-900">
               {friendlyAppRequestStatus(selectedRequest.status)}
             </p>
-            {['pending', 'building'].includes(selectedRequest.status) && (
+            {['pending', 'building', 'verifying'].includes(selectedRequest.status) && (
               <p className="text-sm text-gray-500 mt-1">
-                {getEstimatedTime(selectedRequest.status === 'pending' ? 'planning' : 'building')}
+                {selectedRequest.status === 'verifying'
+                  ? 'Testing your app and fixing any issues automatically...'
+                  : getEstimatedTime(selectedRequest.status === 'pending' ? 'planning' : 'building')}
               </p>
             )}
           </div>
@@ -228,7 +303,7 @@ export default function BuildApp() {
       )}
 
       {/* Request Input Form */}
-      {(!selectedRequest || selectedRequest.status === 'completed' || selectedRequest.status === 'failed') && (
+      {(!selectedRequest || selectedRequest.status === 'completed' || selectedRequest.status === 'failed' || selectedRequest.status === 'verification_failed') && (
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">
             {selectedRequest ? 'Build Another App' : 'What would you like to build?'}
@@ -312,12 +387,23 @@ export default function BuildApp() {
         </div>
       )}
 
-      {/* Next Steps Panel */}
-      {selectedRequest?.status === 'completed' && nextSteps.length > 0 && (
+      {/* Verification Panel - shown for completed and verification_failed states */}
+      {verification && (selectedRequest?.status === 'completed' || selectedRequest?.status === 'verification_failed') && (
+        <VerificationPanel
+          verification={verification}
+          events={events}
+          onDownloadAnyway={selectedRequest?.status === 'verification_failed' ? handleDownloadAnyway : undefined}
+          onRestartBuild={selectedRequest?.status === 'verification_failed' ? handleRestartBuild : undefined}
+          onAcknowledge={selectedRequest?.status === 'verification_failed' ? handleAcknowledge : undefined}
+        />
+      )}
+
+      {/* Next Steps Panel - only show for successful completion */}
+      {selectedRequest?.status === 'completed' && nextSteps.length > 0 && verification?.status === 'passed' && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
           <h3 className="text-lg font-semibold text-green-900 mb-3 flex items-center">
             <span className="mr-2">🎉</span>
-            Your App is Ready! Next Steps:
+            Next Steps:
           </h3>
           <ol className="list-decimal list-inside space-y-2 text-green-800">
             {nextSteps.map((step, i) => (
@@ -422,6 +508,6 @@ export default function BuildApp() {
 }
 
 function getCurrentPhaseIndex(phase: string): number {
-  const phases = ['idea', 'plan', 'approve', 'build', 'ready'];
+  const phases = ['idea', 'plan', 'approve', 'build', 'verify', 'ready'];
   return phases.indexOf(phase);
 }

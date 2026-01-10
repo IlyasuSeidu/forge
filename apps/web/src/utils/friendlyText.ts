@@ -9,10 +9,37 @@ export function friendlyAppRequestStatus(status: string): string {
     pending: 'Planning your app...',
     planned: 'Waiting for your approval',
     building: 'Building your app...',
+    verifying: 'Checking your app works…',
+    verified: 'Your app is verified and ready 🎉',
+    verification_failed: 'Forge needs your help to continue ⚠️',
     completed: 'Your app is ready! ✓',
     failed: 'Something went wrong',
   };
   return statusMap[status] || status;
+}
+
+// Verification status to friendly text (for detailed verification states)
+export function friendlyVerificationStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    pending: 'Waiting to verify...',
+    running: 'Checking your app works…',
+    passed: 'Your app is verified and ready 🎉',
+    failed: 'Forge needs your help to continue ⚠️',
+    repair_attempt_running: 'Fixing a small issue automatically…',
+  };
+  return statusMap[status] || status;
+}
+
+// Repair event type to friendly text
+export function friendlyRepairStatus(eventType: string): string {
+  const statusMap: Record<string, string> = {
+    repair_attempt_started: 'Fixing a small issue automatically…',
+    repair_attempt_applied: 'Applied automatic fix, re-checking…',
+    repair_attempt_failed: 'Could not fix automatically',
+    repair_max_attempts_reached: 'Tried several times, needs your help',
+    verification_passed_after_repair: 'Fixed and verified successfully! 🎉',
+  };
+  return statusMap[eventType] || eventType;
 }
 
 // Execution status to friendly text
@@ -79,6 +106,7 @@ export const buildPhases = [
   { id: 'plan', label: 'Plan', icon: '📋' },
   { id: 'approve', label: 'Approve', icon: '✅' },
   { id: 'build', label: 'Build', icon: '🔨' },
+  { id: 'verify', label: 'Verify', icon: '🔍' },
   { id: 'ready', label: 'Ready', icon: '🎉' },
 ];
 
@@ -88,10 +116,20 @@ export function getCurrentPhase(status: string): string {
     pending: 'plan',
     planned: 'approve',
     building: 'build',
+    verifying: 'verify',
+    verified: 'verify',
+    verification_failed: 'verify',
     completed: 'ready',
     failed: 'ready',
   };
   return phaseMap[status] || 'idea';
+}
+
+// Check if a specific phase has failed
+export function isPhaseFailed(status: string, phaseId: string): boolean {
+  if (phaseId === 'verify' && status === 'verification_failed') return true;
+  if (phaseId === 'build' && status === 'failed') return true;
+  return false;
 }
 
 // Next steps based on artifacts

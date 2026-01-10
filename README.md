@@ -1135,7 +1135,7 @@ HITL approvals are implemented **before** AI integration, not after. This ensure
 3. No risk of shipping autonomous AI without human oversight
 4. Approval workflow is tested and proven before adding AI
 
-### Verification Phase
+### Verification Phase & Self-Healing
 
 Forge introduces **verification** as a first-class, auditable phase in the app building lifecycle. Not all builds are successful—even when execution completes without errors, the generated artifacts may have bugs, missing functionality, or quality issues that make them unusable.
 
@@ -1152,16 +1152,18 @@ Without verification, users download apps that don't work and blame Forge for po
 
 **Verification in the AppRequest Lifecycle**:
 
-The "Build an App" flow now includes verification:
+The "Build an App" flow now includes verification with self-healing:
 ```
-pending → planned → building → verifying → verified/verification_failed → completed | failed
+pending → planned → building → verifying → [self-healing if needed] → verified/verification_failed → completed | failed
 ```
 
 **Key Rules**:
 - ✅ **Execution completion triggers verification automatically**
 - ✅ **An AppRequest cannot reach "completed" status unless verification passes**
-- ✅ **Verification failures are tracked with detailed error messages**
-- ✅ **Multiple verification attempts are supported** (attempt counter)
+- ✅ **Verification failures trigger automatic repair attempts (up to 5 attempts)**
+- ✅ **If self-healing succeeds, app is marked as verified and completed**
+- ✅ **If self-healing fails after max attempts, user is asked to help**
+- ✅ **Multiple verification attempts are tracked** (attempt counter)
 
 **Verification Model**:
 ```typescript
@@ -1171,41 +1173,146 @@ pending → planned → building → verifying → verified/verification_failed 
   executionId: string;     // Foreign key to Execution
   status: string;          // pending | passed | failed
   errors: string[];        // Validation errors (if failed)
-  attempt: number;         // Verification attempt number
+  attempt: number;         // Verification + repair attempt number (max 5)
   createdAt: Date;
 }
 ```
 
-**Verification Events**:
-The verification process emits events to the execution event log:
-- `verification_started` - Verification process has begun
-- `verification_passed` - All validation checks passed, app is functional
-- `verification_failed` - Validation found issues, app cannot be marked complete
+**What Verification Checks**:
 
-**What Verification Checks** *(Implementation pending)*:
-Future verification will validate:
-- HTML/JavaScript consistency (IDs match between HTML and JS)
-- File path correctness (all referenced resources exist)
-- Event listener presence (buttons have click handlers)
-- Basic functionality tests (core features work)
-- No JavaScript console errors
-- Files are syntactically valid
+Forge implements **two-phase verification**:
+
+1. **Static Verification** - Checks code structure without running it:
+   - HTML element IDs match JavaScript references
+   - Script and CSS file paths exist
+   - Required HTML elements are present
+   - No missing file dependencies
+
+2. **Runtime Verification** - Tests actual functionality (future):
+   - Core features work as expected
+   - No JavaScript console errors
+   - Event listeners are properly attached
+   - Basic user flows complete successfully
+
+**Self-Healing Automated Repair**:
+
+When verification finds issues, Forge automatically attempts to fix them:
+
+**How It Works**:
+1. Verification detects specific errors (e.g., "Button ID 'submit-btn' not found in HTML")
+2. RepairAgent reads all workspace files for context
+3. AI generates minimal, targeted fixes (complete file content for changed files only)
+4. Patches are applied to workspace via WorkspaceService
+5. Verification runs again to confirm the fix worked
+6. Process repeats up to **5 times** (configurable via `MAX_REPAIR_ATTEMPTS`)
+
+**Repair Safety Guards**:
+- ✅ **Minimal Changes Only**: AI cannot add features or change UX
+- ✅ **Strict Prompt Contract**: Repair agent has explicit rules against scope expansion
+- ✅ **Re-verification Required**: Every repair must pass verification to be accepted
+- ✅ **Attempt Limits**: Hard cap of 5 repair attempts prevents infinite loops
+- ✅ **Conservative AI Settings**: Lower temperature (0.3) and token limit (16K) for focused fixes
+- ✅ **Complete File Patches**: No placeholders allowed, must provide full file content
+- ✅ **Context-Aware**: Repair agent sees all workspace files before generating fixes
+- ✅ **Event Logging**: Every repair attempt is logged for observability
+
+**Verification Events**:
+The verification and repair process emits detailed events:
+- `verification_started` - Verification process has begun
+- `verification_passed` - All validation checks passed (initial attempt)
+- `verification_failed` - Validation found issues (no more repair attempts)
+- `verification_passed_after_repair` - Self-healing succeeded after fixes
+- `repair_attempt_started` - Starting repair attempt N
+- `repair_attempt_applied` - Patches applied, re-running verification
+- `repair_attempt_failed` - Repair couldn't generate valid fix
+- `repair_max_attempts_reached` - Exhausted all repair attempts
+
+**Human Escalation & Verification UX**:
+
+When self-healing fails after maximum attempts, **Forge asks for your help**:
+
+**User-Friendly Status Messages**:
+- "Checking your app works…" (verifying)
+- "Fixing a small issue automatically…" (repair_attempt_running)
+- "Your app is verified and ready 🎉" (passed)
+- "Forge needs your help to continue ⚠️" (verification_failed after max attempts)
+
+**Verification Panel** (shown on Build App page):
+- Current verification status with friendly explanation
+- Number of repair attempts made
+- Whether auto-fix succeeded or failed
+- **For successful builds**: Shows "Self-Healed" badge if auto-fixed, with details on what was fixed
+- **For failed builds**: Non-technical error summary (first 3 issues), with option to view technical details
+
+**Human Decision Actions** (when verification fails):
+1. **Download Anyway**: Download the app despite known issues (shows safety warning)
+2. **Start Over & Rebuild**: Clear current request and submit new prompt
+3. **Acknowledge**: Accept the failure and navigate away
+
+**Safety Warnings**:
+- ⚠️ **Download Warning**: When downloading a failed app, user sees confirmation dialog explaining risks
+- ⚠️ **No Silent Failures**: User always knows when verification failed
+- ⚠️ **No Auto-Continue**: Forge never proceeds without user consent after max repair attempts
 
 **Benefits**:
 1. **Quality Assurance**: Users get working apps, not broken code
-2. **Clear Feedback**: Verification errors tell users exactly what's wrong
-3. **Audit Trail**: Full history of verification attempts and outcomes
-4. **Iterative Improvement**: Failed verifications can trigger refinement cycles
+2. **Automated Fixes**: Common issues are fixed automatically without user intervention
+3. **Clear Feedback**: User-friendly error messages explain what went wrong
+4. **Full Transparency**: Complete audit trail of verification and repair attempts
+5. **User Control**: No forced decisions - user chooses what to do when auto-fix fails
+6. **Trust Building**: Users understand what happened and why
+
+**Example Flow**:
+
+**Scenario 1: Verification Passes** (no repair needed)
+```
+build completes → verify → ✅ PASSED → completed
+```
+
+**Scenario 2: Self-Healing Succeeds**
+```
+build completes → verify → ❌ FAILED (button ID mismatch)
+→ repair attempt 1 → apply patch → re-verify → ✅ PASSED
+→ completed (marked as "Self-Healed")
+```
+
+**Scenario 3: Self-Healing Fails** (human escalation)
+```
+build completes → verify → ❌ FAILED
+→ repair attempt 1 → ❌ still failing
+→ repair attempt 2 → ❌ still failing
+→ repair attempt 3 → ❌ still failing
+→ repair attempt 4 → ❌ still failing
+→ repair attempt 5 → ❌ still failing
+→ max attempts reached → verification_failed
+→ User sees: "Forge needs your help to continue ⚠️"
+→ User can: Download anyway | Restart build | Acknowledge
+```
 
 **Current Status**:
 - ✅ Database model and schema
-- ✅ VerificationService scaffold with event emission
-- ✅ AppRequest status integration (verifying, verified, verification_failed)
-- ❌ Actual verification logic (TODO)
-- ❌ Artifact validation checks (TODO)
-- ❌ UI integration for verification status (TODO)
+- ✅ VerificationService with self-healing loop
+- ✅ Static verification (HTML/JS consistency checks)
+- ✅ RepairAgent with context-aware fixes
+- ✅ Attempt tracking and limits
+- ✅ Verification Panel UI with human escalation
+- ✅ User-friendly status messages
+- ✅ Safety warnings for downloading failed apps
+- ✅ AppRequest status integration
+- ❌ Runtime verification (TODO - future phase)
+- ❌ More sophisticated validation rules (TODO)
 
-Verification is scaffolded as infrastructure-first, with validation logic to be implemented in future phases.
+**What This Means for Users**:
+
+As a user, here's what happens when you build an app:
+
+1. **Your app is built** - Claude creates all the files
+2. **Forge checks if it works** - Automatic quality checks run
+3. **If there's a small issue** - Forge tries to fix it automatically (you'll see "Fixing a small issue automatically…")
+4. **If auto-fix works** - You get a working app with a "Self-Healed" badge showing what was fixed
+5. **If auto-fix fails** - Forge shows you what went wrong in simple terms and asks what you want to do next
+
+**You're always in control**. Forge never downloads broken apps without warning you, and never continues without your consent.
 
 ### Workspace & Artifact Layer
 

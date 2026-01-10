@@ -126,7 +126,17 @@ export function ExecutionDetail() {
               Build ID: <span className="font-mono">{execution.id.slice(0, 8)}</span>
             </p>
           </div>
-          <StatusBadge status={execution.status} type="execution" />
+          <div className="flex items-center gap-2">
+            {events.some((e) => e.type === 'verification_passed_after_repair') && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+                </svg>
+                Self-Healed
+              </div>
+            )}
+            <StatusBadge status={execution.status} type="execution" />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -175,10 +185,17 @@ export function ExecutionDetail() {
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="divide-y divide-gray-200">
-              {events.map((event, index) => (
+              {events.map((event, index) => {
+                const isRepairEvent = event.type.includes('repair');
+                const isSelfHealSuccess = event.type === 'verification_passed_after_repair';
+                const bgClass = isSelfHealSuccess ? 'bg-purple-50 border-l-4 border-purple-500' :
+                                isRepairEvent ? 'bg-orange-50' :
+                                index === 0 ? 'bg-blue-50' : '';
+
+                return (
                 <div
                   key={event.id}
-                  className={`p-4 ${index === 0 ? 'bg-blue-50' : ''}`}
+                  className={`p-4 ${bgClass}`}
                 >
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
@@ -197,7 +214,8 @@ export function ExecutionDetail() {
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
         )}
@@ -206,9 +224,62 @@ export function ExecutionDetail() {
       {/* Artifacts */}
       {artifacts.length > 0 && (
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Generated Files ({artifacts.length})
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Generated Files ({artifacts.length})
+            </h2>
+            <div className="flex gap-2">
+              {artifacts.some((a) => a.path === 'index.html') && (
+                <a
+                  href={api.getPreviewUrl(projectId!, executionId!)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                  Preview App
+                </a>
+              )}
+              <a
+                href={api.getDownloadUrl(projectId!, executionId!)}
+                download
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+                Download ZIP
+              </a>
+            </div>
+          </div>
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="divide-y divide-gray-200">
               {artifacts.map((artifact) => (
@@ -253,9 +324,21 @@ export function ExecutionDetail() {
                         {new Date(artifact.createdAt).toLocaleString()}
                       </p>
                     </div>
-                    <span className="text-xs text-gray-500 uppercase">
-                      {artifact.type}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 uppercase">
+                        {artifact.type}
+                      </span>
+                      {artifact.type === 'file' && (
+                        <a
+                          href={api.getArtifactUrl(projectId!, executionId!, artifact.path)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                        >
+                          View
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -277,6 +360,20 @@ function getFriendlyEventType(eventType: string): string {
     task_completed: 'Task finished',
     task_failed: 'Task failed',
     agent_response: 'Progress update',
+    verification_started: 'Verification started',
+    verification_passed: 'Verification passed',
+    verification_failed: 'Verification failed',
+    verification_passed_after_repair: 'Self-healing successful',
+    repair_attempt_started: 'Repair attempt started',
+    repair_attempt_applied: 'Repair applied',
+    repair_attempt_failed: 'Repair failed',
+    repair_max_attempts_reached: 'Max repair attempts reached',
+    static_verification_started: 'Static checks started',
+    static_verification_passed: 'Static checks passed',
+    static_verification_failed: 'Static checks failed',
+    runtime_verification_started: 'Runtime checks started',
+    runtime_verification_passed: 'Runtime checks passed',
+    runtime_verification_failed: 'Runtime checks failed',
   };
 
   return typeMap[eventType] || eventType.replace(/_/g, ' ');
@@ -284,6 +381,38 @@ function getFriendlyEventType(eventType: string): string {
 
 function getEventIcon(eventType: string) {
   const iconClass = 'w-5 h-5';
+
+  // Self-healing success (special case - use sparkles/magic wand icon)
+  if (eventType === 'verification_passed_after_repair') {
+    return (
+      <svg className={`${iconClass} text-purple-500`} fill="currentColor" viewBox="0 0 20 20">
+        <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+      </svg>
+    );
+  }
+
+  // Repair events (use wrench icon)
+  if (eventType.includes('repair')) {
+    const color = eventType.includes('failed') ? 'text-red-500' :
+                  eventType.includes('applied') ? 'text-green-500' : 'text-orange-500';
+    return (
+      <svg className={`${iconClass} ${color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    );
+  }
+
+  // Verification events (use shield icon)
+  if (eventType.includes('verification') || eventType.includes('_verification_')) {
+    const color = eventType.includes('passed') ? 'text-green-500' :
+                  eventType.includes('failed') ? 'text-red-500' : 'text-blue-500';
+    return (
+      <svg className={`${iconClass} ${color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    );
+  }
 
   if (eventType.includes('started')) {
     return (
@@ -297,7 +426,7 @@ function getEventIcon(eventType: string) {
     );
   }
 
-  if (eventType.includes('completed')) {
+  if (eventType.includes('completed') || eventType.includes('passed')) {
     return (
       <svg className={`${iconClass} text-green-500`} fill="currentColor" viewBox="0 0 20 20">
         <path

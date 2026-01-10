@@ -2,7 +2,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import type { AppRequest } from '../models/index.js';
-import { AppRequestStatus, ApprovalType, ExecutionStatus } from '../models/index.js';
+import { AppRequestStatus, ApprovalType } from '../models/index.js';
 import { ClaudeService } from './claude-service.js';
 import { ApprovalService } from './approval-service.js';
 import { WorkspaceService } from './workspace-service.js';

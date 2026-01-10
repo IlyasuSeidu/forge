@@ -1,9 +1,14 @@
 import type { FastifyBaseLogger } from 'fastify';
 import crypto from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
-import { VerificationStatus, AppRequestStatus, type Verification } from '../models/index.js';
+import { VerificationStatus, AppRequestStatus, ExecutionStatus, type Verification } from '../models/index.js';
 import { StaticVerifier } from './static-verifier.js';
+import { RuntimeVerifier } from './runtime-verifier.js';
 import { WorkspaceService } from './workspace-service.js';
+import { RepairAgent } from '../agents/repair-agent.js';
+
+// STEP 6: Safety guard - maximum repair attempts
+const MAX_REPAIR_ATTEMPTS = 5;
 
 /**
  * VerificationService handles verification of generated artifacts
@@ -12,10 +17,14 @@ import { WorkspaceService } from './workspace-service.js';
 export class VerificationService {
   private logger: FastifyBaseLogger;
   private staticVerifier: StaticVerifier;
+  private runtimeVerifier: RuntimeVerifier;
+  private repairAgent: RepairAgent;
 
   constructor(logger: FastifyBaseLogger) {
     this.logger = logger.child({ service: 'VerificationService' });
     this.staticVerifier = new StaticVerifier(logger);
+    this.runtimeVerifier = new RuntimeVerifier(logger);
+    this.repairAgent = new RepairAgent(logger);
   }
 
   /**
@@ -31,7 +40,7 @@ export class VerificationService {
   ): Promise<Verification> {
     this.logger.info(
       { appRequestId, executionId },
-      'Starting verification'
+      'Starting verification with self-healing'
     );
 
     // Get the appRequest to find the projectId
@@ -66,39 +75,158 @@ export class VerificationService {
       `Verification started for app request (attempt ${verification.attempt})`
     );
 
-    // STEP 6: Run static verification
+    // STEP 4: Repair loop - try verification, repair if needed, re-verify
     try {
       // Get workspace path for this project
       const workspaceService = new WorkspaceService(this.logger, appRequest.projectId);
       const workspacePath = workspaceService.getWorkspaceRoot();
 
-      this.logger.info(
-        { verificationId: verification.id, workspacePath },
-        'Running static verification'
-      );
+      let currentAttempt = 1;
+      let lastErrors: string[] = [];
 
-      // Run static verifier
-      const result = await this.staticVerifier.verify(workspacePath);
-
-      if (result.passed) {
-        // Static verification passed
+      // Loop: verify → repair → re-verify (up to MAX_REPAIR_ATTEMPTS)
+      while (currentAttempt <= MAX_REPAIR_ATTEMPTS) {
         this.logger.info(
-          { verificationId: verification.id },
-          'Static verification passed'
+          { verificationId: verification.id, attempt: currentAttempt, maxAttempts: MAX_REPAIR_ATTEMPTS },
+          `Verification attempt ${currentAttempt}`
         );
 
-        // Mark as passed
-        return await this.markPassed(verification.id);
-      } else {
-        // Static verification failed
-        this.logger.warn(
-          { verificationId: verification.id, errorCount: result.errors.length },
-          'Static verification failed'
+        // Run full verification (static + runtime)
+        const verificationResult = await this.runFullVerification(
+          verification.id,
+          executionId,
+          workspacePath
         );
 
-        // Mark as failed with errors
-        return await this.markFailed(verification.id, result.errors);
+        if (verificationResult.passed) {
+          // Verification passed!
+          this.logger.info(
+            { verificationId: verification.id, attempt: currentAttempt },
+            currentAttempt > 1
+              ? 'Verification passed after repair'
+              : 'Verification passed on first attempt'
+          );
+
+          // Update verification record with final attempt count
+          await prisma.verification.update({
+            where: { id: verification.id },
+            data: { attempt: currentAttempt },
+          });
+
+          if (currentAttempt > 1) {
+            // Emit special event for successful repair
+            await this.emitEvent(
+              executionId,
+              'verification_passed_after_repair',
+              `Verification passed after ${currentAttempt} attempt(s)`
+            );
+          }
+
+          return await this.markPassed(verification.id);
+        }
+
+        // Verification failed
+        lastErrors = verificationResult.errors;
+
+        // Check if we can attempt repair
+        if (currentAttempt >= MAX_REPAIR_ATTEMPTS) {
+          // Max attempts reached - give up
+          this.logger.warn(
+            { verificationId: verification.id, errorCount: lastErrors.length },
+            'Max repair attempts reached - verification failed'
+          );
+
+          // Update verification with final attempt count
+          await prisma.verification.update({
+            where: { id: verification.id },
+            data: { attempt: currentAttempt },
+          });
+
+          // Emit final failure event
+          await this.emitEvent(
+            executionId,
+            'repair_max_attempts_reached',
+            `Verification failed after ${currentAttempt} attempts`
+          );
+
+          return await this.markFailed(verification.id, lastErrors);
+        }
+
+        // STEP 3: Attempt repair
+        this.logger.info(
+          { verificationId: verification.id, attempt: currentAttempt },
+          'Verification failed - attempting repair'
+        );
+
+        await this.emitEvent(
+          executionId,
+          'repair_attempt_started',
+          `Repair attempt ${currentAttempt} started (${lastErrors.length} errors to fix)`
+        );
+
+        const repairResult = await this.repairAgent.repair({
+          verificationErrors: lastErrors,
+          workspacePath,
+          attempt: currentAttempt,
+        });
+
+        if (!repairResult.success) {
+          // Repair failed to generate patches
+          this.logger.error(
+            { verificationId: verification.id, error: repairResult.error },
+            'Repair agent failed to generate patches'
+          );
+
+          await this.emitEvent(
+            executionId,
+            'repair_attempt_failed',
+            `Repair attempt ${currentAttempt} failed: ${repairResult.error}`
+          );
+
+          // Update attempt and mark as failed
+          await prisma.verification.update({
+            where: { id: verification.id },
+            data: { attempt: currentAttempt },
+          });
+
+          return await this.markFailed(verification.id, lastErrors);
+        }
+
+        // Apply patches
+        this.logger.info(
+          { verificationId: verification.id, patchCount: repairResult.patches.length },
+          'Applying repair patches'
+        );
+
+        for (const patch of repairResult.patches) {
+          try {
+            await workspaceService.writeFile(patch.filePath, patch.newContent);
+            this.logger.debug(
+              { filePath: patch.filePath },
+              'Patch applied successfully'
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(
+              { filePath: patch.filePath, error: message },
+              'Failed to apply patch'
+            );
+          }
+        }
+
+        await this.emitEvent(
+          executionId,
+          'repair_attempt_applied',
+          `Repair attempt ${currentAttempt} applied (${repairResult.patches.length} files patched) - re-running verification`
+        );
+
+        // Increment attempt counter and loop back to re-verify
+        currentAttempt++;
       }
+
+      // Should never reach here, but just in case
+      return await this.markFailed(verification.id, lastErrors);
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -112,6 +240,55 @@ export class VerificationService {
         `Verification crashed: ${errorMessage}`,
       ]);
     }
+  }
+
+  /**
+   * Helper: Run full verification (static + runtime)
+   * Returns pass/fail and any errors found
+   */
+  private async runFullVerification(
+    verificationId: string,
+    executionId: string,
+    workspacePath: string
+  ): Promise<{ passed: boolean; errors: string[] }> {
+    // Run static verification
+    this.logger.info({ verificationId }, 'Running static verification');
+
+    const staticResult = await this.staticVerifier.verify(workspacePath);
+
+    if (!staticResult.passed) {
+      this.logger.warn(
+        { verificationId, errorCount: staticResult.errors.length },
+        'Static verification failed'
+      );
+
+      return { passed: false, errors: staticResult.errors };
+    }
+
+    // Static passed - run runtime verification
+    this.logger.info({ verificationId }, 'Static verification passed - running runtime verification');
+
+    await this.emitEvent(
+      executionId,
+      'runtime_verification_started',
+      'Static checks passed - starting runtime verification'
+    );
+
+    const runtimeResult = await this.runtimeVerifier.verify(workspacePath);
+
+    if (!runtimeResult.passed) {
+      this.logger.warn(
+        { verificationId, errorCount: runtimeResult.errors.length },
+        'Runtime verification failed'
+      );
+
+      return { passed: false, errors: runtimeResult.errors };
+    }
+
+    // Both passed!
+    this.logger.info({ verificationId }, 'Both static and runtime verification passed');
+
+    return { passed: true, errors: [] };
   }
 
   /**
@@ -145,11 +322,25 @@ export class VerificationService {
       'AppRequest marked as completed after verification passed'
     );
 
+    // Update Execution status to completed
+    await prisma.execution.update({
+      where: { id: verification.executionId },
+      data: {
+        status: ExecutionStatus.Completed,
+        finishedAt: new Date(),
+      },
+    });
+
+    this.logger.info(
+      { executionId: verification.executionId },
+      'Execution marked as completed after verification passed'
+    );
+
     // Emit verification_passed event
     await this.emitEvent(
       verification.executionId,
       'verification_passed',
-      'Verification completed successfully - all checks passed'
+      'Verification completed successfully - all static and runtime checks passed'
     );
 
     return {
@@ -194,6 +385,20 @@ export class VerificationService {
     this.logger.info(
       { appRequestId: verification.appRequestId },
       'AppRequest marked as verification_failed'
+    );
+
+    // Update Execution status to failed
+    await prisma.execution.update({
+      where: { id: verification.executionId },
+      data: {
+        status: ExecutionStatus.Failed,
+        finishedAt: new Date(),
+      },
+    });
+
+    this.logger.info(
+      { executionId: verification.executionId },
+      'Execution marked as failed after verification failed'
     );
 
     // Emit verification_failed event
