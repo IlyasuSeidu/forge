@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { NotFoundError } from '../utils/errors.js';
 import type { ProjectService } from '../services/project-service.js';
 import { prisma } from '../lib/prisma.js';
+import archiver from 'archiver';
+import path from 'node:path';
 
 /**
  * Artifact routes
@@ -165,5 +167,86 @@ export async function artifactRoutes(
       );
       throw new Error(`Failed to read artifact: ${errorMessage}`);
     }
+  });
+
+  /**
+   * Download all artifacts as a ZIP file
+   */
+  fastify.get<{
+    Params: { id: string; executionId: string };
+  }>('/projects/:id/executions/:executionId/download', async (request, reply) => {
+    const { id: projectId, executionId } = request.params;
+
+    // Verify project exists
+    if (!(await projectService.projectExists(projectId))) {
+      throw new NotFoundError('Project', projectId);
+    }
+
+    // Verify execution exists and belongs to project
+    const execution = await prisma.execution.findUnique({
+      where: { id: executionId },
+    });
+
+    if (!execution || execution.projectId !== projectId) {
+      throw new NotFoundError('Execution', executionId);
+    }
+
+    // Get all file artifacts (exclude directories)
+    const artifacts = await prisma.artifact.findMany({
+      where: {
+        projectId,
+        executionId,
+        type: 'file',
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (artifacts.length === 0) {
+      throw new NotFoundError('Artifacts', 'No files to download');
+    }
+
+    // Create ZIP archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 }, // Maximum compression
+    });
+
+    // Set response headers
+    reply.type('application/zip');
+    reply.header('Content-Disposition', `attachment; filename="app-${executionId.slice(0, 8)}.zip"`);
+
+    // Pipe archive to response
+    archive.pipe(reply.raw);
+
+    // Load workspace service
+    const { WorkspaceService } = await import('../services/workspace-service.js');
+    const workspaceService = new WorkspaceService(fastify.log, projectId);
+
+    // Add each artifact to the archive
+    for (const artifact of artifacts) {
+      try {
+        const content = await workspaceService.readFile(artifact.path);
+        archive.append(content, { name: artifact.path });
+
+        fastify.log.debug(
+          { artifactPath: artifact.path, projectId, executionId },
+          'Added file to ZIP archive'
+        );
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        fastify.log.warn(
+          { artifactPath: artifact.path, error: errorMessage },
+          'Failed to add file to ZIP archive, skipping'
+        );
+        // Continue with other files even if one fails
+      }
+    }
+
+    // Finalize the archive
+    await archive.finalize();
+
+    fastify.log.info(
+      { projectId, executionId, fileCount: artifacts.length },
+      'ZIP download completed'
+    );
   });
 }

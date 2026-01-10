@@ -120,22 +120,14 @@ export default function BuildApp() {
     if (!projectId || !selectedRequest?.executionId) return;
 
     try {
-      // For now, download each artifact individually
-      // Future: implement ZIP download on backend
-      const htmlArtifact = artifacts.find(a => a.path === 'index.html');
-
-      if (htmlArtifact) {
-        // Download the main HTML file
-        const url = `/api/projects/${projectId}/executions/${selectedRequest.executionId}/artifacts/${htmlArtifact.path}`;
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = htmlArtifact.path;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        alert('No downloadable files found. Check the Build Details page for artifact information.');
-      }
+      // Download all artifacts as a ZIP file
+      const url = `/api/projects/${projectId}/executions/${selectedRequest.executionId}/download`;
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `app-${selectedRequest.executionId.slice(0, 8)}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to download');
     }
