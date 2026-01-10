@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api';
 import type { AppRequest, Artifact } from '../types';
-import Loading from '../components/Loading';
-import ErrorMessage from '../components/ErrorMessage';
+import { Loading } from '../components/Loading';
+import { ErrorMessage } from '../components/ErrorMessage';
 import {
   friendlyAppRequestStatus,
   getEstimatedTime,
@@ -16,7 +16,6 @@ import {
 
 export default function BuildApp() {
   const { projectId } = useParams<{ projectId: string }>();
-  const [appRequests, setAppRequests] = useState<AppRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<AppRequest | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [prompt, setPrompt] = useState('');
@@ -42,7 +41,6 @@ export default function BuildApp() {
     if (!projectId) return;
     try {
       const { appRequests: requests } = await api.getAppRequests(projectId);
-      setAppRequests(requests);
 
       // Select the most recent request by default
       if (requests.length > 0 && !selectedRequest) {
