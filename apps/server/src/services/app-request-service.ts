@@ -7,6 +7,7 @@ import { TaskService } from './task-service.js';
 import { ApprovalService } from './approval-service.js';
 import { WorkspaceService } from './workspace-service.js';
 import { ApprovalType } from '../models/index.js';
+import { normalizeError, logError } from '../utils/error-helpers.js';
 
 interface PlanningResult {
   prd: string;
@@ -66,11 +67,26 @@ export class AppRequestService {
 
     // Trigger planning phase asynchronously
     this.startPlanningPhase(appRequest).catch((error) => {
-      this.logger.error(
-        { appRequestId: id, error },
-        'Planning phase failed'
+      const normalizedError = normalizeError(error);
+
+      logError(
+        this.logger,
+        error,
+        'Planning phase failed - async catch'
       );
-      this.updateAppRequestStatus(id, 'failed');
+
+      // Update status with error reason
+      this.updateAppRequestStatusWithError(
+        id,
+        'failed',
+        normalizedError.message
+      ).catch((updateError) => {
+        logError(
+          this.logger,
+          updateError,
+          'Failed to update app request status after planning failure'
+        );
+      });
     });
 
     return appRequest as AppRequest;
@@ -108,6 +124,31 @@ export class AppRequestService {
       where: { id },
       data: { status },
     });
+    return appRequest as AppRequest;
+  }
+
+  /**
+   * Update app request status with error reason
+   */
+  private async updateAppRequestStatusWithError(
+    id: string,
+    status: AppRequestStatus,
+    errorReason: string
+  ): Promise<AppRequest> {
+    const appRequest = await this.prisma.appRequest.update({
+      where: { id },
+      data: {
+        status,
+        errorReason: errorReason.slice(0, 500), // Limit error message length
+      },
+    });
+
+    // Emit failure event
+    this.logger.error(
+      { appRequestId: id, errorReason },
+      'App request planning failed'
+    );
+
     return appRequest as AppRequest;
   }
 

@@ -9,6 +9,7 @@ export interface AppRequest {
   status: AppRequestStatus;
   prdPath?: string | null;
   executionId?: string | null;
+  errorReason?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
