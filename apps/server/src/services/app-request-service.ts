@@ -1,12 +1,10 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import type { AppRequest, AppRequestStatus } from '../models/index.js';
+import type { AppRequest } from '../models/index.js';
+import { AppRequestStatus } from '../models/index.js';
 import { ClaudeService } from './claude-service.js';
-import { TaskService } from './task-service.js';
-import { ApprovalService } from './approval-service.js';
 import { WorkspaceService } from './workspace-service.js';
-import { ApprovalType } from '../models/index.js';
 import { normalizeError, logError } from '../utils/error-helpers.js';
 
 interface PlanningResult {
@@ -26,20 +24,11 @@ export class AppRequestService {
   private prisma: PrismaClient;
   private logger: FastifyBaseLogger;
   private claudeService: ClaudeService;
-  private taskService: TaskService;
-  private approvalService: ApprovalService;
 
-  constructor(
-    prisma: PrismaClient,
-    logger: FastifyBaseLogger,
-    taskService: TaskService,
-    approvalService: ApprovalService
-  ) {
+  constructor(prisma: PrismaClient, logger: FastifyBaseLogger) {
     this.prisma = prisma;
     this.logger = logger.child({ service: 'AppRequestService' });
     this.claudeService = new ClaudeService(logger);
-    this.taskService = taskService;
-    this.approvalService = approvalService;
   }
 
   /**
@@ -66,7 +55,7 @@ export class AppRequestService {
     });
 
     // Trigger planning phase asynchronously
-    this.startPlanningPhase(appRequest).catch((error) => {
+    this.startPlanningPhase(appRequest as AppRequest).catch((error) => {
       const normalizedError = normalizeError(error);
 
       logError(
@@ -78,7 +67,7 @@ export class AppRequestService {
       // Update status with error reason
       this.updateAppRequestStatusWithError(
         id,
-        'failed',
+        AppRequestStatus.Failed,
         normalizedError.message
       ).catch((updateError) => {
         logError(
@@ -154,76 +143,193 @@ export class AppRequestService {
 
   /**
    * Start planning phase: Use Claude to generate PRD and task list
+   * This method is transactional - either everything succeeds or everything rolls back
    */
   private async startPlanningPhase(appRequest: AppRequest): Promise<void> {
-    this.logger.info(
-      { appRequestId: appRequest.id },
-      'Starting planning phase'
-    );
-
-    if (!this.claudeService.isEnabled()) {
-      throw new Error('Claude service is not available for planning');
-    }
-
-    // Build planning prompt
-    const planningPrompt = this.buildPlanningPrompt(appRequest.prompt);
-
-    // Call Claude to generate plan
-    const response = await this.claudeService.complete({
-      prompt: planningPrompt,
-      maxTokens: 8192,
-      temperature: 0.7,
-    });
-
-    this.logger.info(
-      {
-        appRequestId: appRequest.id,
-        model: response.model,
-        inputTokens: response.usage.inputTokens,
-        outputTokens: response.usage.outputTokens,
-      },
-      'Planning completed by Claude'
-    );
-
-    // Parse planning result
-    const planningResult = this.parsePlanningResponse(response.content);
-
-    // Save PRD as artifact (writeFile automatically creates artifact record)
-    const workspaceService = new WorkspaceService(
-      this.logger,
-      appRequest.projectId
-    );
-    const prdPath = 'PRD.md';
-    await workspaceService.writeFile(
-      prdPath,
-      planningResult.prd
-    );
-
-    // Create tasks from planning result
-    for (const taskData of planningResult.tasks) {
-      await this.taskService.createTask(
-        appRequest.projectId,
-        taskData.title,
-        taskData.description
+    try {
+      this.logger.info(
+        { appRequestId: appRequest.id },
+        'Starting planning phase'
       );
+
+      if (!this.claudeService.isEnabled()) {
+        throw new Error('Claude service is not available for planning');
+      }
+
+      // Build planning prompt
+      const planningPrompt = this.buildPlanningPrompt(appRequest.prompt);
+
+      // Call Claude to generate plan
+      const response = await this.claudeService.complete({
+        prompt: planningPrompt,
+        maxTokens: 8192,
+        temperature: 0.7,
+      });
+
+      this.logger.info(
+        {
+          appRequestId: appRequest.id,
+          model: response.model,
+          inputTokens: response.usage.inputTokens,
+          outputTokens: response.usage.outputTokens,
+        },
+        'Planning completed by Claude'
+      );
+
+      // Parse and validate planning result
+      const planningResult = this.parsePlanningResponse(response.content);
+      this.validatePlanningResult(planningResult);
+
+      // Save PRD as artifact (outside transaction - file I/O)
+      const workspaceService = new WorkspaceService(
+        this.logger,
+        appRequest.projectId
+      );
+      const prdPath = 'PRD.md';
+
+      this.logger.info(
+        { appRequestId: appRequest.id, prdPath },
+        'Writing PRD to workspace'
+      );
+
+      await workspaceService.writeFile(prdPath, planningResult.prd);
+
+      this.logger.info(
+        {
+          appRequestId: appRequest.id,
+          prdPath,
+          taskCount: planningResult.tasks.length,
+        },
+        'PRD written, starting transaction for task creation'
+      );
+
+      // Use transaction for task creation and status update
+      // If any step fails, everything rolls back
+      await this.prisma.$transaction(
+        async (tx) => {
+          // Create tasks from planning result
+          for (const taskData of planningResult.tasks) {
+            this.logger.debug(
+              {
+                appRequestId: appRequest.id,
+                taskTitle: taskData.title,
+              },
+              'Creating task from plan'
+            );
+
+            await tx.task.create({
+              data: {
+                id: randomUUID(),
+                projectId: appRequest.projectId,
+                title: taskData.title.trim(),
+                description: taskData.description.trim(),
+                status: 'pending',
+              },
+            });
+          }
+
+          // Update app request status and store PRD path
+          await tx.appRequest.update({
+            where: { id: appRequest.id },
+            data: {
+              status: 'planned',
+              prdPath,
+              errorReason: null, // Clear any previous error
+            },
+          });
+        },
+        {
+          maxWait: 10000, // Maximum time to wait for transaction to start (ms)
+          timeout: 30000, // Maximum time transaction can run (ms)
+        }
+      );
+
+      // Emit success event
+      this.logger.info(
+        {
+          appRequestId: appRequest.id,
+          tasksCreated: planningResult.tasks.length,
+          prdPath,
+        },
+        'App request planning completed successfully'
+      );
+    } catch (error) {
+      // Normalize error for logging
+      const normalizedError = normalizeError(error);
+
+      logError(this.logger, error, 'Planning phase failed - inner catch');
+
+      // Update status with error reason
+      await this.updateAppRequestStatusWithError(
+        appRequest.id,
+        AppRequestStatus.Failed,
+        normalizedError.message
+      );
+
+      // Re-throw to trigger outer catch
+      throw normalizedError;
+    }
+  }
+
+  /**
+   * Validate planning result structure and content
+   */
+  private validatePlanningResult(result: PlanningResult): void {
+    // Check PRD is not empty
+    if (!result.prd || result.prd.trim().length === 0) {
+      throw new Error('PRD is empty or missing');
     }
 
-    // Update app request status and store PRD path
-    await this.prisma.appRequest.update({
-      where: { id: appRequest.id },
-      data: {
-        status: 'planned',
-        prdPath,
-      },
+    // Check PRD has reasonable length
+    if (result.prd.length < 100) {
+      throw new Error('PRD is too short (less than 100 characters)');
+    }
+
+    // Check tasks array is valid
+    if (!Array.isArray(result.tasks)) {
+      throw new Error('Tasks must be an array');
+    }
+
+    if (result.tasks.length === 0) {
+      throw new Error('No tasks generated');
+    }
+
+    if (result.tasks.length > 15) {
+      throw new Error('Too many tasks generated (maximum 15)');
+    }
+
+    // Validate each task thoroughly
+    result.tasks.forEach((task, i) => {
+      if (!task.title || typeof task.title !== 'string') {
+        throw new Error(`Task ${i + 1}: Missing or invalid title`);
+      }
+
+      if (task.title.trim().length === 0) {
+        throw new Error(`Task ${i + 1}: Title is empty`);
+      }
+
+      if (task.title.length > 200) {
+        throw new Error(`Task ${i + 1}: Title too long (max 200 characters)`);
+      }
+
+      if (!task.description || typeof task.description !== 'string') {
+        throw new Error(`Task ${i + 1}: Missing or invalid description`);
+      }
+
+      if (task.description.trim().length === 0) {
+        throw new Error(`Task ${i + 1}: Description is empty`);
+      }
+
+      if (task.description.length > 2000) {
+        throw new Error(
+          `Task ${i + 1}: Description too long (max 2000 characters)`
+        );
+      }
     });
 
     this.logger.info(
-      {
-        appRequestId: appRequest.id,
-        tasksCreated: planningResult.tasks.length,
-        prdPath,
-      },
-      'Planning phase completed'
+      { taskCount: result.tasks.length, prdLength: result.prd.length },
+      'Planning result validated successfully'
     );
   }
 

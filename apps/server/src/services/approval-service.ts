@@ -2,7 +2,6 @@ import type { FastifyBaseLogger } from 'fastify';
 import crypto from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
 import {
-  ApprovalType,
   ApprovalStatus,
   type Approval,
   type CreateApprovalInput,

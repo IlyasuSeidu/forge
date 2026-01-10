@@ -47,9 +47,7 @@ export async function createServer() {
   const executionService = new ExecutionService(fastify.log);
   const appRequestService = new AppRequestService(
     executionService.getPrismaClient(),
-    fastify.log,
-    taskService,
-    approvalService
+    fastify.log
   );
 
   // Add JSON content type parser
