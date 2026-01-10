@@ -13,6 +13,8 @@ export interface AgentResult {
   artifacts?: any;
   /** Error message if execution failed */
   error?: string;
+  /** Optional metadata about the execution (model used, tokens, reasoning, etc.) */
+  metadata?: Record<string, any>;
 }
 
 /**
