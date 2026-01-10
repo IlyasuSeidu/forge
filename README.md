@@ -99,7 +99,10 @@ Think of it as having a junior developer assistant that can:
 4. **Click "Build an App"**: Describe what you want in plain English
 5. **Approve the Build**: Review the plan and click "Approve"
 6. **Wait**: Building typically takes 2-5 minutes
-7. **Download Your App**: Get the generated files when complete
+7. **Verification**: Forge checks that your app actually works (automatic)
+8. **Download Your App**: Get the generated files when complete
+
+**Note**: Not all builds succeed! Even when building completes, the generated app may have bugs. Forge's verification phase checks for common issues before marking your app as ready. If verification fails, you'll see what went wrong and can try building again with a more specific description.
 
 **Example Prompts**:
 - "Build a personal task manager with add, edit, and delete features"
@@ -125,11 +128,13 @@ Forge is a backend-first platform designed to orchestrate autonomous AI agents t
 
 Currently implemented:
 - ✅ Core backend API server (Fastify + TypeScript)
-- ✅ Domain models (Project, Task, Execution, ExecutionEvent, Artifact, Approval)
+- ✅ Domain models (Project, Task, Execution, ExecutionEvent, Artifact, Approval, **Verification**)
 - ✅ **Database persistence (SQLite + Prisma)**
 - ✅ RESTful API endpoints
 - ✅ **Execution state machine (idle → pending_approval → running → paused → completed/failed)**
+- ✅ **AppRequest lifecycle with verification** (pending → planned → building → verifying → verified/verification_failed → completed/failed)
 - ✅ **Human-in-the-Loop (HITL) approval controls**
+- ✅ **Verification phase scaffold** (domain model, events, service structure)
 - ✅ **AI Agent Integration (ClaudeAgent via Anthropic API)**
 - ✅ **Sequential task processing with event logging**
 - ✅ **Pause/resume execution control**
@@ -285,6 +290,24 @@ Represents a file or directory created by agents in the workspace.
   createdAt: Date;
 }
 ```
+
+### Verification
+
+Represents a validation check of generated artifacts to ensure quality and functionality.
+
+```typescript
+{
+  id: string;              // UUID
+  appRequestId: string;    // Foreign key to AppRequest
+  executionId: string;     // Execution that produced artifacts
+  status: VerificationStatus; // pending | passed | failed
+  errors: string[] | null; // Validation errors (if failed)
+  attempt: number;         // Verification attempt number
+  createdAt: Date;
+}
+```
+
+Verification ensures that AI-generated apps actually work before marking them as complete. See [Verification Phase](#verification-phase) for details.
 
 ## API Reference
 
@@ -1111,6 +1134,78 @@ HITL approvals are implemented **before** AI integration, not after. This ensure
 2. AI agents inherit approval requirements by default
 3. No risk of shipping autonomous AI without human oversight
 4. Approval workflow is tested and proven before adding AI
+
+### Verification Phase
+
+Forge introduces **verification** as a first-class, auditable phase in the app building lifecycle. Not all builds are successful—even when execution completes without errors, the generated artifacts may have bugs, missing functionality, or quality issues that make them unusable.
+
+**Why Verification Matters**:
+
+When AI agents generate code, there's no guarantee the output actually works:
+- JavaScript IDs may not match HTML elements
+- File paths may be incorrect
+- Buttons may not have event listeners
+- Logic errors may prevent core functionality
+- The app may look complete but be completely broken
+
+Without verification, users download apps that don't work and blame Forge for poor quality. Verification provides a quality gate before marking apps as "completed."
+
+**Verification in the AppRequest Lifecycle**:
+
+The "Build an App" flow now includes verification:
+```
+pending → planned → building → verifying → verified/verification_failed → completed | failed
+```
+
+**Key Rules**:
+- ✅ **Execution completion triggers verification automatically**
+- ✅ **An AppRequest cannot reach "completed" status unless verification passes**
+- ✅ **Verification failures are tracked with detailed error messages**
+- ✅ **Multiple verification attempts are supported** (attempt counter)
+
+**Verification Model**:
+```typescript
+{
+  id: string;              // UUID
+  appRequestId: string;    // Foreign key to AppRequest
+  executionId: string;     // Foreign key to Execution
+  status: string;          // pending | passed | failed
+  errors: string[];        // Validation errors (if failed)
+  attempt: number;         // Verification attempt number
+  createdAt: Date;
+}
+```
+
+**Verification Events**:
+The verification process emits events to the execution event log:
+- `verification_started` - Verification process has begun
+- `verification_passed` - All validation checks passed, app is functional
+- `verification_failed` - Validation found issues, app cannot be marked complete
+
+**What Verification Checks** *(Implementation pending)*:
+Future verification will validate:
+- HTML/JavaScript consistency (IDs match between HTML and JS)
+- File path correctness (all referenced resources exist)
+- Event listener presence (buttons have click handlers)
+- Basic functionality tests (core features work)
+- No JavaScript console errors
+- Files are syntactically valid
+
+**Benefits**:
+1. **Quality Assurance**: Users get working apps, not broken code
+2. **Clear Feedback**: Verification errors tell users exactly what's wrong
+3. **Audit Trail**: Full history of verification attempts and outcomes
+4. **Iterative Improvement**: Failed verifications can trigger refinement cycles
+
+**Current Status**:
+- ✅ Database model and schema
+- ✅ VerificationService scaffold with event emission
+- ✅ AppRequest status integration (verifying, verified, verification_failed)
+- ❌ Actual verification logic (TODO)
+- ❌ Artifact validation checks (TODO)
+- ❌ UI integration for verification status (TODO)
+
+Verification is scaffolded as infrastructure-first, with validation logic to be implemented in future phases.
 
 ### Workspace & Artifact Layer
 

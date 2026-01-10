@@ -1,6 +1,6 @@
 /**
  * AppRequest represents a high-level request to build an entire app
- * Status flow: pending -> planned -> building -> completed | failed
+ * Status flow: pending -> planned -> building -> verifying -> verified/verification_failed -> completed | failed
  */
 export interface AppRequest {
   id: string;
@@ -18,6 +18,9 @@ export enum AppRequestStatus {
   Pending = 'pending',
   Planned = 'planned',
   Building = 'building',
+  Verifying = 'verifying',
+  Verified = 'verified',
+  VerificationFailed = 'verification_failed',
   Completed = 'completed',
   Failed = 'failed',
 }

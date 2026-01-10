@@ -4,3 +4,4 @@ export * from './execution-service.js';
 export * from './approval-service.js';
 export * from './claude-service.js';
 export * from './app-request-service.js';
+export * from './verification-service.js';

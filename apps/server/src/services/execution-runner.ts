@@ -125,6 +125,14 @@ export class ExecutionRunner {
         'execution_completed',
         'All tasks have been completed successfully'
       );
+
+      // TODO: Trigger verification for app requests
+      // If this execution is linked to an appRequestId:
+      // 1. Update AppRequest status to 'verifying'
+      // 2. Call VerificationService.startVerification(appRequestId, executionId)
+      // 3. VerificationService will emit verification_started event
+      // 4. On pass: emit verification_passed, update AppRequest to 'completed'
+      // 5. On fail: emit verification_failed, update AppRequest to 'verification_failed'
     } catch (error) {
       // Mark execution as failed
       await prisma.execution.update({
