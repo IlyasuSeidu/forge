@@ -133,24 +133,20 @@ export default function BuildApp() {
     }
   };
 
-  const handlePreviewClick = async () => {
+  const handlePreviewClick = () => {
     if (!projectId || !selectedRequest?.executionId) return;
 
     try {
-      // Fetch the index.html content
+      // Check if index.html exists
       const htmlArtifact = artifacts.find(a => a.path === 'index.html');
       if (!htmlArtifact) {
         setError('No preview available - index.html not found');
         return;
       }
 
-      const response = await fetch(`/api/projects/${projectId}/executions/${selectedRequest.executionId}/artifacts/${htmlArtifact.path}`);
-      if (!response.ok) {
-        throw new Error('Failed to load preview');
-      }
-
-      const content = await response.text();
-      setPreviewContent(content);
+      // Set the preview URL - the iframe will load the HTML and its resources (CSS, JS)
+      const previewUrl = `/api/projects/${projectId}/executions/${selectedRequest.executionId}/artifacts/index.html`;
+      setPreviewContent(previewUrl);
       setShowPreview(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load preview');
@@ -413,9 +409,9 @@ export default function BuildApp() {
               </p>
               <iframe
                 className="w-full h-full border border-gray-300 rounded"
-                sandbox="allow-scripts"
+                sandbox="allow-scripts allow-same-origin"
                 title="App Preview"
-                srcDoc={previewContent}
+                src={previewContent}
               />
             </div>
           </div>
