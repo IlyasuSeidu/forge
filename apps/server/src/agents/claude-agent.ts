@@ -71,9 +71,11 @@ export class ClaudeAgent implements Agent {
       const prompt = this.buildPrompt(task, context);
 
       // Call Claude API
+      // Claude Opus 4.5 supports up to 64K output tokens max
+      // Using 32K for comprehensive tasks while staying well under API limits
       const response = await this.claudeService.complete({
         prompt,
-        maxTokens: 8192,
+        maxTokens: 32768,
         temperature: 0.7,
       });
 

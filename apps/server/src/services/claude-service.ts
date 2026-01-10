@@ -34,6 +34,9 @@ export class ClaudeService {
     if (this.enabled) {
       this.client = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY,
+        // Set default timeout to 15 minutes for large output token requests
+        // Claude Opus 4.5 with 32K max_tokens can take longer
+        timeout: 15 * 60 * 1000, // 15 minutes in milliseconds
       });
       this.logger.info('ClaudeService initialized with API key');
     } else {
