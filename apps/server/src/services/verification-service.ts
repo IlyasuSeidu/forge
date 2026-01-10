@@ -1,7 +1,9 @@
 import type { FastifyBaseLogger } from 'fastify';
 import crypto from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
-import { VerificationStatus, type Verification } from '../models/index.js';
+import { VerificationStatus, AppRequestStatus, type Verification } from '../models/index.js';
+import { StaticVerifier } from './static-verifier.js';
+import { WorkspaceService } from './workspace-service.js';
 
 /**
  * VerificationService handles verification of generated artifacts
@@ -9,9 +11,11 @@ import { VerificationStatus, type Verification } from '../models/index.js';
  */
 export class VerificationService {
   private logger: FastifyBaseLogger;
+  private staticVerifier: StaticVerifier;
 
   constructor(logger: FastifyBaseLogger) {
     this.logger = logger.child({ service: 'VerificationService' });
+    this.staticVerifier = new StaticVerifier(logger);
   }
 
   /**
@@ -27,18 +31,24 @@ export class VerificationService {
   ): Promise<Verification> {
     this.logger.info(
       { appRequestId, executionId },
-      'Starting verification (scaffold - no logic yet)'
+      'Starting verification'
     );
+
+    // Get the appRequest to find the projectId
+    const appRequest = await prisma.appRequest.findUnique({
+      where: { id: appRequestId },
+    });
+
+    if (!appRequest) {
+      throw new Error(`AppRequest ${appRequestId} not found`);
+    }
 
     // Count previous attempts
     const previousAttempts = await prisma.verification.count({
       where: { appRequestId },
     });
 
-    // TODO: Implement verification logic
-    // - Load artifacts
-    // - Trigger validation checks
-
+    // Create verification record
     const verification = await prisma.verification.create({
       data: {
         id: crypto.randomUUID(),
@@ -56,11 +66,52 @@ export class VerificationService {
       `Verification started for app request (attempt ${verification.attempt})`
     );
 
-    return {
-      ...verification,
-      status: verification.status as VerificationStatus,
-      errors: verification.errors ? JSON.parse(verification.errors) : null,
-    };
+    // STEP 6: Run static verification
+    try {
+      // Get workspace path for this project
+      const workspaceService = new WorkspaceService(this.logger, appRequest.projectId);
+      const workspacePath = workspaceService.getWorkspaceRoot();
+
+      this.logger.info(
+        { verificationId: verification.id, workspacePath },
+        'Running static verification'
+      );
+
+      // Run static verifier
+      const result = await this.staticVerifier.verify(workspacePath);
+
+      if (result.passed) {
+        // Static verification passed
+        this.logger.info(
+          { verificationId: verification.id },
+          'Static verification passed'
+        );
+
+        // Mark as passed
+        return await this.markPassed(verification.id);
+      } else {
+        // Static verification failed
+        this.logger.warn(
+          { verificationId: verification.id, errorCount: result.errors.length },
+          'Static verification failed'
+        );
+
+        // Mark as failed with errors
+        return await this.markFailed(verification.id, result.errors);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      this.logger.error(
+        { verificationId: verification.id, error: errorMessage },
+        'Verification crashed'
+      );
+
+      // Mark as failed
+      return await this.markFailed(verification.id, [
+        `Verification crashed: ${errorMessage}`,
+      ]);
+    }
   }
 
   /**
@@ -71,7 +122,7 @@ export class VerificationService {
   async markPassed(verificationId: string): Promise<Verification> {
     this.logger.info(
       { verificationId },
-      'Marking verification as passed (scaffold - no logic yet)'
+      'Marking verification as passed'
     );
 
     const verification = await prisma.verification.update({
@@ -81,7 +132,18 @@ export class VerificationService {
       },
     });
 
-    // TODO: Update app request status to completed
+    // Update AppRequest status to completed
+    await prisma.appRequest.update({
+      where: { id: verification.appRequestId },
+      data: {
+        status: AppRequestStatus.Completed,
+      },
+    });
+
+    this.logger.info(
+      { appRequestId: verification.appRequestId },
+      'AppRequest marked as completed after verification passed'
+    );
 
     // Emit verification_passed event
     await this.emitEvent(
@@ -109,7 +171,7 @@ export class VerificationService {
   ): Promise<Verification> {
     this.logger.info(
       { verificationId, errorCount: errors.length },
-      'Marking verification as failed (scaffold - no logic yet)'
+      'Marking verification as failed'
     );
 
     const verification = await prisma.verification.update({
@@ -120,13 +182,29 @@ export class VerificationService {
       },
     });
 
-    // TODO: Update app request status to verification_failed
+    // Update AppRequest status to verification_failed
+    await prisma.appRequest.update({
+      where: { id: verification.appRequestId },
+      data: {
+        status: AppRequestStatus.VerificationFailed,
+        errorReason: `Verification failed: ${errors.length} error(s) found`,
+      },
+    });
+
+    this.logger.info(
+      { appRequestId: verification.appRequestId },
+      'AppRequest marked as verification_failed'
+    );
 
     // Emit verification_failed event
+    // Truncate error list in event message if too long
+    const errorPreview = errors.slice(0, 3).join('; ');
+    const moreErrors = errors.length > 3 ? ` (and ${errors.length - 3} more)` : '';
+
     await this.emitEvent(
       verification.executionId,
       'verification_failed',
-      `Verification failed with ${errors.length} error(s): ${errors.join(', ')}`
+      `Verification failed with ${errors.length} error(s): ${errorPreview}${moreErrors}`
     );
 
     return {
