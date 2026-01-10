@@ -1,5 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import type { ProjectService, ApprovalService, ExecutionService } from '../services/index.js';
+import type {
+  ProjectService,
+  ApprovalService,
+  ExecutionService,
+  AppRequestService,
+} from '../services/index.js';
 import { NotFoundError } from '../utils/errors.js';
 import { ApprovalType } from '../models/index.js';
 
@@ -10,7 +15,8 @@ export async function approvalRoutes(
   fastify: FastifyInstance,
   projectService: ProjectService,
   approvalService: ApprovalService,
-  executionService: ExecutionService
+  executionService: ExecutionService,
+  appRequestService: AppRequestService
 ) {
   /**
    * GET /projects/:id/approvals
@@ -56,13 +62,24 @@ export async function approvalRoutes(
     });
 
     fastify.log.info(
-      { approvalId, type: approval.type, executionId: approval.executionId },
+      {
+        approvalId,
+        type: approval.type,
+        executionId: approval.executionId,
+        appRequestId: approval.appRequestId,
+      },
       'Approval approved'
     );
 
     // Trigger appropriate action based on approval type
     if (approval.type === ApprovalType.ExecutionStart) {
-      await executionService.handleExecutionApproval(approval.executionId);
+      if (approval.appRequestId) {
+        // Build approval for AppRequest
+        await appRequestService.handleBuildApproval(approval.appRequestId);
+      } else if (approval.executionId) {
+        // Regular execution approval
+        await executionService.handleExecutionApproval(approval.executionId);
+      }
     }
     // Future: handle TaskCompletion approval type when implemented
 
@@ -93,13 +110,31 @@ export async function approvalRoutes(
     });
 
     fastify.log.info(
-      { approvalId, type: approval.type, executionId: approval.executionId, reason },
+      {
+        approvalId,
+        type: approval.type,
+        executionId: approval.executionId,
+        appRequestId: approval.appRequestId,
+        reason,
+      },
       'Approval rejected'
     );
 
     // Trigger appropriate action based on approval type
     if (approval.type === ApprovalType.ExecutionStart) {
-      await executionService.handleExecutionRejection(approval.executionId, reason);
+      if (approval.appRequestId) {
+        // Build rejection for AppRequest
+        await appRequestService.handleBuildRejection(
+          approval.appRequestId,
+          reason
+        );
+      } else if (approval.executionId) {
+        // Regular execution rejection
+        await executionService.handleExecutionRejection(
+          approval.executionId,
+          reason
+        );
+      }
     }
     // Future: handle TaskCompletion approval type when implemented
 

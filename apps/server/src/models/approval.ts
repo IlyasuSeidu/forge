@@ -28,7 +28,8 @@ export type Approval = PrismaApproval;
  */
 export interface CreateApprovalInput {
   projectId: string;
-  executionId: string;
+  executionId?: string;
+  appRequestId?: string;
   taskId?: string;
   type: ApprovalType;
 }

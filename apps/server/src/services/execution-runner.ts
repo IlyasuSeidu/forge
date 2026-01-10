@@ -68,14 +68,24 @@ export class ExecutionRunner {
         await this.emitEvent(executionId, 'execution_started', 'Execution has started');
       }
 
-      // Fetch all tasks for the project
+      // Fetch tasks for the project
+      // If execution is linked to an AppRequest, only process tasks for that AppRequest
+      const taskFilter: any = { projectId: execution.projectId };
+      if (execution.appRequestId) {
+        taskFilter.appRequestId = execution.appRequestId;
+        this.logger.info(
+          { executionId, appRequestId: execution.appRequestId },
+          'Execution linked to AppRequest - filtering tasks'
+        );
+      }
+
       const tasks = await prisma.task.findMany({
-        where: { projectId: execution.projectId },
+        where: taskFilter,
         orderBy: { createdAt: 'asc' },
       });
 
       this.logger.info(
-        { executionId, taskCount: tasks.length },
+        { executionId, taskCount: tasks.length, appRequestId: execution.appRequestId },
         'Processing tasks'
       );
 

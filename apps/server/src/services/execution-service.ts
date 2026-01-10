@@ -185,6 +185,174 @@ export class ExecutionService {
   }
 
   /**
+   * Creates an execution for an app request (approval already handled by AppRequestService)
+   * This execution will process only tasks linked to the appRequestId
+   */
+  async createExecutionForAppRequest(
+    projectId: string,
+    appRequestId: string
+  ): Promise<Execution> {
+    // Check if there's already a running, paused, or pending approval execution for this project
+    const activeExecution = await prisma.execution.findFirst({
+      where: {
+        projectId,
+        status: {
+          in: [
+            ExecutionStatus.Running,
+            ExecutionStatus.Paused,
+            ExecutionStatus.PendingApproval,
+          ],
+        },
+      },
+    });
+
+    if (activeExecution) {
+      throw new BusinessRuleError(
+        `Cannot start execution: project already has an active execution (${activeExecution.id}, status: ${activeExecution.status})`
+      );
+    }
+
+    // Create new execution in IDLE state (approval already handled)
+    const execution = await prisma.execution.create({
+      data: {
+        id: crypto.randomUUID(),
+        projectId,
+        appRequestId,
+        status: ExecutionStatus.Idle,
+      },
+    });
+
+    this.logger.info(
+      { executionId: execution.id, projectId, appRequestId },
+      'Execution created for app request'
+    );
+
+    // Emit execution_created event
+    await prisma.executionEvent.create({
+      data: {
+        id: crypto.randomUUID(),
+        executionId: execution.id,
+        type: 'execution_created',
+        message: `Execution created for app request ${appRequestId}`,
+      },
+    });
+
+    return execution;
+  }
+
+  /**
+   * Starts an execution for an app request (approval already handled)
+   */
+  async startExecutionForAppRequest(executionId: string): Promise<void> {
+    const execution = await prisma.execution.findUnique({
+      where: { id: executionId },
+    });
+
+    if (!execution) {
+      throw new BusinessRuleError(`Execution ${executionId} not found`);
+    }
+
+    if (execution.status !== ExecutionStatus.Idle) {
+      this.logger.warn(
+        { executionId, status: execution.status },
+        'Execution is not idle, cannot start'
+      );
+      return;
+    }
+
+    this.logger.info({ executionId }, 'Starting execution for app request');
+
+    // Start execution in background (non-blocking)
+    setImmediate(async () => {
+      try {
+        await this.runner.runExecution(executionId);
+        // After execution completes, sync AppRequest status
+        await this.syncAppRequestStatus(executionId);
+      } catch (error) {
+        this.logger.error(
+          { executionId, error },
+          'Execution runner failed for app request'
+        );
+        // Even on failure, sync AppRequest status
+        await this.syncAppRequestStatus(executionId);
+      }
+    });
+  }
+
+  /**
+   * Syncs AppRequest status based on execution status
+   * Called after execution completes or fails
+   */
+  private async syncAppRequestStatus(executionId: string): Promise<void> {
+    try {
+      const execution = await prisma.execution.findUnique({
+        where: { id: executionId },
+      });
+
+      if (!execution || !execution.appRequestId) {
+        // Not linked to an AppRequest, nothing to sync
+        return;
+      }
+
+      const appRequest = await prisma.appRequest.findUnique({
+        where: { id: execution.appRequestId },
+      });
+
+      if (!appRequest) {
+        this.logger.warn(
+          { executionId, appRequestId: execution.appRequestId },
+          'AppRequest not found for execution'
+        );
+        return;
+      }
+
+      // Update AppRequest status based on execution status
+      let newStatus: string;
+      let errorReason: string | null = null;
+
+      if (execution.status === ExecutionStatus.Completed) {
+        newStatus = 'completed';
+        this.logger.info(
+          { executionId, appRequestId: execution.appRequestId },
+          'Marking AppRequest as completed'
+        );
+      } else if (execution.status === ExecutionStatus.Failed) {
+        newStatus = 'failed';
+        errorReason = 'Execution failed during build';
+        this.logger.info(
+          { executionId, appRequestId: execution.appRequestId },
+          'Marking AppRequest as failed'
+        );
+      } else {
+        // Still running or paused, don't update
+        return;
+      }
+
+      await prisma.appRequest.update({
+        where: { id: execution.appRequestId },
+        data: {
+          status: newStatus,
+          errorReason,
+        },
+      });
+
+      this.logger.info(
+        {
+          appRequestId: execution.appRequestId,
+          executionId,
+          status: newStatus,
+        },
+        'AppRequest status synced with execution'
+      );
+    } catch (error) {
+      this.logger.error(
+        { executionId, error },
+        'Failed to sync AppRequest status'
+      );
+    }
+  }
+
+  /**
    * Retrieves an execution by ID
    */
   async getExecutionById(id: string): Promise<Execution | null> {

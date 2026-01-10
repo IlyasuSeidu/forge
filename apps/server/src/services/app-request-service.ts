@@ -2,9 +2,11 @@ import type { FastifyBaseLogger } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import type { AppRequest } from '../models/index.js';
-import { AppRequestStatus } from '../models/index.js';
+import { AppRequestStatus, ApprovalType, ExecutionStatus } from '../models/index.js';
 import { ClaudeService } from './claude-service.js';
+import { ApprovalService } from './approval-service.js';
 import { WorkspaceService } from './workspace-service.js';
+import { ExecutionService } from './execution-service.js';
 import { normalizeError, logError } from '../utils/error-helpers.js';
 
 interface PlanningResult {
@@ -24,11 +26,20 @@ export class AppRequestService {
   private prisma: PrismaClient;
   private logger: FastifyBaseLogger;
   private claudeService: ClaudeService;
+  private approvalService: ApprovalService;
+  private executionService: ExecutionService;
 
-  constructor(prisma: PrismaClient, logger: FastifyBaseLogger) {
+  constructor(
+    prisma: PrismaClient,
+    logger: FastifyBaseLogger,
+    approvalService: ApprovalService,
+    executionService: ExecutionService
+  ) {
     this.prisma = prisma;
     this.logger = logger.child({ service: 'AppRequestService' });
     this.claudeService = new ClaudeService(logger);
+    this.approvalService = approvalService;
+    this.executionService = executionService;
   }
 
   /**
@@ -114,6 +125,93 @@ export class AppRequestService {
       data: { status },
     });
     return appRequest as AppRequest;
+  }
+
+  /**
+   * Create build approval after planning completes
+   */
+  private async createBuildApproval(
+    appRequestId: string,
+    projectId: string
+  ): Promise<void> {
+    await this.approvalService.createApproval({
+      projectId,
+      appRequestId,
+      type: ApprovalType.ExecutionStart,
+    });
+  }
+
+  /**
+   * Handle build approval - start execution for app request
+   */
+  async handleBuildApproval(appRequestId: string): Promise<void> {
+    const appRequest = await this.getAppRequestById(appRequestId);
+
+    if (!appRequest) {
+      throw new Error(`AppRequest ${appRequestId} not found`);
+    }
+
+    if (appRequest.status !== 'planned') {
+      this.logger.warn(
+        { appRequestId, status: appRequest.status },
+        'AppRequest is not in planned state, skipping build'
+      );
+      return;
+    }
+
+    this.logger.info({ appRequestId }, 'Build approved - starting execution');
+
+    // Update status to building
+    await this.prisma.appRequest.update({
+      where: { id: appRequestId },
+      data: { status: AppRequestStatus.Building },
+    });
+
+    // Create execution for this project
+    // The execution will process only tasks linked to this appRequestId
+    const execution = await this.executionService.createExecutionForAppRequest(
+      appRequest.projectId,
+      appRequestId
+    );
+
+    // Store execution ID on app request
+    await this.prisma.appRequest.update({
+      where: { id: appRequestId },
+      data: { executionId: execution.id },
+    });
+
+    this.logger.info(
+      { appRequestId, executionId: execution.id },
+      'Execution started for app request'
+    );
+
+    // Start the execution (this will run asynchronously)
+    await this.executionService.startExecutionForAppRequest(execution.id);
+  }
+
+  /**
+   * Handle build rejection - mark app request as failed
+   */
+  async handleBuildRejection(
+    appRequestId: string,
+    reason?: string
+  ): Promise<void> {
+    const appRequest = await this.getAppRequestById(appRequestId);
+
+    if (!appRequest) {
+      throw new Error(`AppRequest ${appRequestId} not found`);
+    }
+
+    this.logger.info(
+      { appRequestId, reason },
+      'Build rejected - marking app request as failed'
+    );
+
+    await this.updateAppRequestStatusWithError(
+      appRequestId,
+      AppRequestStatus.Failed,
+      reason || 'Build rejected by user'
+    );
   }
 
   /**
@@ -221,6 +319,7 @@ export class AppRequestService {
               data: {
                 id: randomUUID(),
                 projectId: appRequest.projectId,
+                appRequestId: appRequest.id,
                 title: taskData.title.trim(),
                 description: taskData.description.trim(),
                 status: 'pending',
@@ -252,6 +351,14 @@ export class AppRequestService {
           prdPath,
         },
         'App request planning completed successfully'
+      );
+
+      // Create build approval (HITL gate before starting execution)
+      await this.createBuildApproval(appRequest.id, appRequest.projectId);
+
+      this.logger.info(
+        { appRequestId: appRequest.id },
+        'Build approval created - awaiting user approval to start building'
       );
     } catch (error) {
       // Normalize error for logging

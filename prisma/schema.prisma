@@ -24,19 +24,21 @@ model Project {
 }
 
 model Task {
-  id          String    @id
-  projectId   String
-  title       String
-  description String
-  status      String    @default("pending")
-  executionId String?
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id           String    @id
+  projectId    String
+  appRequestId String?
+  title        String
+  description  String
+  status       String    @default("pending")
+  executionId  String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([appRequestId])
   @@index([status])
   @@index([executionId])
 }
@@ -44,6 +46,7 @@ model Task {
 model Execution {
   id               String             @id
   projectId        String
+  appRequestId     String?
   status           String             @default("idle")
   startedAt        DateTime?
   finishedAt       DateTime?
@@ -52,6 +55,7 @@ model Execution {
   approvals        Approval[]
 
   @@index([projectId])
+  @@index([appRequestId])
   @@index([status])
 }
 
@@ -83,20 +87,22 @@ model Artifact {
 }
 
 model Approval {
-  id          String    @id
-  projectId   String
-  executionId String
-  taskId      String?
-  type        String
-  status      String    @default("pending")
-  reason      String?
-  createdAt   DateTime  @default(now())
-  resolvedAt  DateTime?
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  id           String     @id
+  projectId    String
+  executionId  String?
+  appRequestId String?
+  taskId       String?
+  type         String
+  status       String     @default("pending")
+  reason       String?
+  createdAt    DateTime   @default(now())
+  resolvedAt   DateTime?
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  execution    Execution? @relation(fields: [executionId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([executionId])
+  @@index([appRequestId])
   @@index([status])
 }
 

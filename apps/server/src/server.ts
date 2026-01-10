@@ -47,7 +47,9 @@ export async function createServer() {
   const executionService = new ExecutionService(fastify.log);
   const appRequestService = new AppRequestService(
     executionService.getPrismaClient(),
-    fastify.log
+    fastify.log,
+    approvalService,
+    executionService
   );
 
   // Add JSON content type parser
@@ -120,7 +122,13 @@ export async function createServer() {
   );
   await fastify.register(
     async (instance) =>
-      approvalRoutes(instance, projectService, approvalService, executionService),
+      approvalRoutes(
+        instance,
+        projectService,
+        approvalService,
+        executionService,
+        appRequestService
+      ),
     { prefix: '/api' }
   );
   await fastify.register(

@@ -28,6 +28,7 @@ export class ApprovalService {
         id: crypto.randomUUID(),
         projectId: input.projectId,
         executionId: input.executionId,
+        appRequestId: input.appRequestId,
         taskId: input.taskId,
         type: input.type,
         status: ApprovalStatus.Pending,
@@ -39,6 +40,7 @@ export class ApprovalService {
         approvalId: approval.id,
         projectId: input.projectId,
         executionId: input.executionId,
+        appRequestId: input.appRequestId,
         type: input.type,
       },
       'Approval created'
