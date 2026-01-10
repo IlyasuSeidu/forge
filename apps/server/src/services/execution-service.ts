@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Execution, ExecutionEvent } from '../models/index.js';
-import { ExecutionStatus, ApprovalType } from '../models/index.js';
+import { ExecutionStatus, ApprovalType, AppRequestStatus } from '../models/index.js';
 import { prisma } from '../lib/prisma.js';
 import { ExecutionRunner } from './execution-runner.js';
 import { AgentRegistry, ClaudeAgent } from '../agents/index.js';
 import { ApprovalService } from './approval-service.js';
+import { VerificationService } from './verification-service.js';
 import { BusinessRuleError } from '../utils/errors.js';
 
 /**
@@ -16,11 +17,13 @@ export class ExecutionService {
   private runner: ExecutionRunner;
   private agentRegistry: AgentRegistry;
   private approvalService: ApprovalService;
+  private verificationService: VerificationService;
 
   constructor(logger: FastifyBaseLogger) {
     this.logger = logger.child({ service: 'ExecutionService' });
     this.agentRegistry = new AgentRegistry();
     this.approvalService = new ApprovalService(logger);
+    this.verificationService = new VerificationService(logger);
 
     // Register AI agents with higher priority than DefaultAgent
     // ClaudeAgent will be used if ANTHROPIC_API_KEY is set and task matches criteria
@@ -282,6 +285,8 @@ export class ExecutionService {
   /**
    * Syncs AppRequest status based on execution status
    * Called after execution completes or fails
+   *
+   * STEP 5 WIRING: When execution completes successfully, triggers verification
    */
   private async syncAppRequestStatus(executionId: string): Promise<void> {
     try {
@@ -306,41 +311,56 @@ export class ExecutionService {
         return;
       }
 
-      // Update AppRequest status based on execution status
-      let newStatus: string;
-      let errorReason: string | null = null;
-
+      // Handle execution completion or failure
       if (execution.status === ExecutionStatus.Completed) {
-        newStatus = 'completed';
+        // STEP 5: Execution succeeded - trigger verification
         this.logger.info(
           { executionId, appRequestId: execution.appRequestId },
-          'Marking AppRequest as completed'
+          'Execution completed - transitioning to verification phase'
+        );
+
+        // Transition AppRequest to "verifying"
+        await prisma.appRequest.update({
+          where: { id: execution.appRequestId },
+          data: {
+            status: AppRequestStatus.Verifying,
+          },
+        });
+
+        // Create Verification record and start verification
+        await this.verificationService.startVerification(
+          execution.appRequestId,
+          executionId
+        );
+
+        this.logger.info(
+          { appRequestId: execution.appRequestId, executionId },
+          'Verification started for completed execution'
         );
       } else if (execution.status === ExecutionStatus.Failed) {
-        newStatus = 'failed';
-        errorReason = 'Execution failed during build';
+        // STEP 5: Execution failed - mark AppRequest as failed (no verification)
         this.logger.info(
           { executionId, appRequestId: execution.appRequestId },
-          'Marking AppRequest as failed'
+          'Execution failed - marking AppRequest as failed (no verification)'
         );
+
+        await prisma.appRequest.update({
+          where: { id: execution.appRequestId },
+          data: {
+            status: AppRequestStatus.Failed,
+            errorReason: 'Execution failed during build',
+          },
+        });
       } else {
         // Still running or paused, don't update
         return;
       }
 
-      await prisma.appRequest.update({
-        where: { id: execution.appRequestId },
-        data: {
-          status: newStatus,
-          errorReason,
-        },
-      });
-
       this.logger.info(
         {
           appRequestId: execution.appRequestId,
           executionId,
-          status: newStatus,
+          executionStatus: execution.status,
         },
         'AppRequest status synced with execution'
       );
