@@ -1540,6 +1540,28 @@ Phase 7 (AI Integration) is complete. Next up:
    - Graceful shutdown and degradation
    - Error recovery and retry mechanisms
 
+## Core Invariants (Phase 10 Freeze)
+
+**Status**: FROZEN as of 2026-01-11
+
+Forge's verification and self-healing system (Phase 10) is now **frozen** and protected by core invariants that MUST NEVER be weakened.
+
+These guarantees define Forge's credibility:
+
+1. **No Silent Completion**: Apps cannot be marked "completed" without passing verification
+2. **No Silent Failures**: All verification failures are visible to users
+3. **Bounded Self-Healing**: Repair attempts are limited and always re-verify
+4. **Human Control**: No auto-approval, no forced actions
+5. **Ratchet Rule**: Verification can only be strengthened, never weakened
+
+**See [docs/INVARIANTS.md](docs/INVARIANTS.md) for complete specification.**
+
+Any change that weakens these invariants is a **breaking change** and violates Forge's core promise to users.
+
+Frozen baseline: `git tag phase-10-freeze`
+
+---
+
 ## Contributing
 
 This is an early-stage project focused on building a solid foundation. Contributions should prioritize:
@@ -1548,6 +1570,8 @@ This is an early-stage project focused on building a solid foundation. Contribut
 - **Clarity** over cleverness
 - **Extensibility** over premature optimization
 - **Production readiness** over prototyping
+
+**Critical**: All contributions must respect the Core Invariants documented in [docs/INVARIANTS.md](docs/INVARIANTS.md). Changes that bypass or weaken verification will be rejected.
 
 ## License
 

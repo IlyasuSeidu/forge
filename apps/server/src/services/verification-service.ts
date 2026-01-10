@@ -8,11 +8,22 @@ import { WorkspaceService } from './workspace-service.js';
 import { RepairAgent } from '../agents/repair-agent.js';
 
 // STEP 6: Safety guard - maximum repair attempts
+// ⚠️ CRITICAL: This bound prevents infinite repair loops (Invariant 3)
 const MAX_REPAIR_ATTEMPTS = 5;
 
 /**
  * VerificationService handles verification of generated artifacts
  * Ensures apps are functional before marking them as completed
+ *
+ * ⚠️ CRITICAL SYSTEM INVARIANT ⚠️
+ * This service enforces Forge's core quality guarantees:
+ * - No app marked "completed" without verification (Invariant 1)
+ * - All failures visible to users (Invariant 2)
+ * - Bounded self-healing with re-verification (Invariant 3)
+ *
+ * Do NOT bypass or weaken verification logic.
+ * See docs/INVARIANTS.md for protected guarantees.
+ * Frozen baseline: git tag phase-10-freeze
  */
 export class VerificationService {
   private logger: FastifyBaseLogger;
