@@ -1,4 +1,4 @@
-import type { Project, Task, Execution, ExecutionEvent, Artifact, Approval } from './types';
+import type { Project, Task, Execution, ExecutionEvent, Artifact, Approval, AppRequest } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -118,6 +118,19 @@ export const api = {
 
   async rejectApproval(approvalId: string, reason?: string): Promise<Approval> {
     return postJson(`/approvals/${approvalId}/reject`, { reason });
+  },
+
+  // App Requests
+  async getAppRequests(projectId: string): Promise<{ appRequests: AppRequest[] }> {
+    return fetchJson(`/projects/${projectId}/app-requests`);
+  },
+
+  async getAppRequest(projectId: string, appRequestId: string): Promise<AppRequest> {
+    return fetchJson(`/projects/${projectId}/app-requests/${appRequestId}`);
+  },
+
+  async createAppRequest(projectId: string, prompt: string): Promise<AppRequest> {
+    return postJson(`/projects/${projectId}/app-requests`, { prompt });
   },
 };
 

@@ -50,11 +50,24 @@ export interface Artifact {
 export interface Approval {
   id: string;
   projectId: string;
-  executionId: string;
+  executionId: string | null;
+  appRequestId: string | null;
   taskId: string | null;
   type: 'execution_start' | 'task_completion';
   status: 'pending' | 'approved' | 'rejected';
   reason: string | null;
   createdAt: string;
   resolvedAt: string | null;
+}
+
+export interface AppRequest {
+  id: string;
+  projectId: string;
+  prompt: string;
+  status: 'pending' | 'planned' | 'building' | 'completed' | 'failed';
+  prdPath: string | null;
+  executionId: string | null;
+  errorReason: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { ProjectList } from './pages/ProjectList';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { ExecutionDetail } from './pages/ExecutionDetail';
+import BuildApp from './pages/BuildApp';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Routes>
             <Route path="/" element={<ProjectList />} />
             <Route path="/projects/:projectId" element={<ProjectDetail />} />
+            <Route path="/projects/:projectId/build-app" element={<BuildApp />} />
             <Route
               path="/projects/:projectId/executions/:executionId"
               element={<ExecutionDetail />}
