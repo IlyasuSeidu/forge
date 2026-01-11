@@ -184,6 +184,11 @@ model SyntheticAnswer {
   proposedAnswer   String
   finalAnswer      String?
   status           String // "proposed" | "approved" | "adjusted"
+
+  // Production Hardening - SyntheticAnswerContract
+  contract         String  @default("{}")  // JSON: {proposedAnswer, confidence, reasoning, assumptions, suggestedAlternatives}
+  requestHash      String  @default("")    // SHA-256 hash for deduplication
+
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   foundrySession   FoundrySession @relation(fields: [foundrySessionId], references: [id], onDelete: Cascade)
@@ -191,6 +196,7 @@ model SyntheticAnswer {
   @@index([appRequestId])
   @@index([foundrySessionId])
   @@index([status])
+  @@index([requestHash])
 }
 
 model PlanningDocument {
