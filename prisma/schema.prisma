@@ -207,11 +207,21 @@ model PlanningDocument {
   status       String // "draft" | "awaiting_approval" | "approved"
   createdAt    DateTime   @default(now())
   approvedAt   DateTime?
+
+  // Immutability & Versioning (Production Hardening)
+  documentVersion Int              @default(1)
+  documentHash    String?          // SHA-256 hash of approved document
+  sectionHashes   String           @default("{}") // JSON: {"vision": "hash", "targetAudience": "hash", ...}
+  basePromptHash  String?          // Reference to Base Prompt this was derived from
+  approvedBy      String?          // "human" | "synthetic_founder"
+
   appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([type])
   @@index([status])
+  @@index([documentHash])
+  @@index([basePromptHash])
 }
 
 model ScreenIndex {
