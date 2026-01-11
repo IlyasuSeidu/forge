@@ -92,6 +92,7 @@ interface LLMConfig {
   temperature: number; // MUST be ≤ 0.3 for determinism
   maxTokens: number;
   retryAttempts: number;
+  provider: 'anthropic' | 'openai'; // Which LLM provider to use
 }
 
 /**
@@ -169,12 +170,14 @@ export class SyntheticFounderHardened {
     }
 
     // LLM config with DETERMINISM constraints
+    const provider = config?.provider || 'anthropic'; // Default to Claude
     this.llmConfig = {
-      apiKey: config?.apiKey || process.env.OPENAI_API_KEY,
-      model: config?.model || 'gpt-4o', // GPT-4.1/4o recommended
+      apiKey: config?.apiKey || (provider === 'anthropic' ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY),
+      model: config?.model || (provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'gpt-4o'),
       temperature: requestedTemperature,
       maxTokens: config?.maxTokens || 800,
       retryAttempts: config?.retryAttempts || 3,
+      provider,
     };
 
     this.logger.info(
@@ -463,12 +466,20 @@ export class SyntheticFounderHardened {
       throw new Error(`FoundrySession not found for appRequestId: ${appRequestId}`);
     }
 
+    // Get initial app request prompt for context
+    const appRequest = await this.prisma.appRequest.findUnique({
+      where: { id: appRequestId },
+    });
+
     // PART 2: Build context from approved answers ONLY
     const context: PromptContext = {
       productName: session.answers.product_name,
       concept: session.answers.one_sentence_concept,
       previousAnswers: session.answers,
     };
+
+    // Add initial prompt if available (for first question)
+    const initialPrompt = appRequest?.prompt || '';
 
     // PART 2: Validate context isolation
     this.validateContextAccess(context);
@@ -515,7 +526,7 @@ export class SyntheticFounderHardened {
     // PART 6 & 7: Call LLM with deterministic settings (NO silent fallbacks)
     let contract: SyntheticAnswerContract;
     try {
-      contract = await this.callLLM(question.question, question.optional, context);
+      contract = await this.callLLM(question.question, question.optional, context, initialPrompt);
     } catch (error) {
       this.logger.error({ error, appRequestId, question }, 'LLM call FAILED');
 
@@ -795,7 +806,8 @@ export class SyntheticFounderHardened {
   private async callLLM(
     question: string,
     optional: boolean,
-    context: PromptContext
+    context: PromptContext,
+    initialPrompt: string = ''
   ): Promise<SyntheticAnswerContract> {
     // IMMUTABLE SYSTEM PROMPT (Layer 1)
     const systemPrompt = `You are a competent startup founder answering product strategy questions.
@@ -822,18 +834,22 @@ You MUST respond with ONLY a valid JSON object matching this schema:
 NO additional text outside the JSON object.`;
 
     // DYNAMIC USER PROMPT (Layer 2)
+    const initialContext = initialPrompt
+      ? `\n\nInitial project brief:\n${initialPrompt}`
+      : '';
+
     const contextSection =
       Object.keys(context.previousAnswers).length > 0
-        ? `\n\nContext so far:\n${Object.entries(context.previousAnswers)
+        ? `\n\nPrevious answers:\n${Object.entries(context.previousAnswers)
             .map(([key, value]) => `- ${key}: ${value}`)
             .join('\n')}`
-        : '\n\nNo previous context available yet.';
+        : '';
 
     const optionalNote = optional
       ? '\n\nNote: This is optional. If you don\'t have a clear, simple answer based on the context, set proposedAnswer to "Not sure" and confidence to "low".'
       : '';
 
-    const userPrompt = `${question}${contextSection}${optionalNote}
+    const userPrompt = `${question}${initialContext}${contextSection}${optionalNote}
 
 Remember: Respond with ONLY a valid JSON object. No additional text.`;
 
@@ -851,7 +867,9 @@ Remember: Respond with ONLY a valid JSON object. No additional text.`;
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= this.llmConfig.retryAttempts; attempt++) {
       try {
-        const response = await this.callOpenAI(systemPrompt, userPrompt);
+        const response = this.llmConfig.provider === 'anthropic'
+          ? await this.callAnthropic(systemPrompt, userPrompt)
+          : await this.callOpenAI(systemPrompt, userPrompt);
 
         this.logger.debug(
           { question, responseLength: response.length, attempt },
@@ -962,6 +980,51 @@ Remember: Respond with ONLY a valid JSON object. No additional text.`;
 
     if (!message) {
       throw new Error('No response from OpenAI API');
+    }
+
+    return message;
+  }
+
+  /**
+   * Call Anthropic (Claude) API
+   *
+   * @private
+   */
+  private async callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
+    if (!this.llmConfig.apiKey) {
+      throw new Error('Anthropic API key not configured - cannot call LLM');
+    }
+
+    const requestBody = {
+      model: this.llmConfig.model,
+      max_tokens: this.llmConfig.maxTokens,
+      temperature: this.llmConfig.temperature,
+      system: systemPrompt,
+      messages: [
+        { role: 'user', content: userPrompt },
+      ],
+    };
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': this.llmConfig.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Anthropic API error: ${response.status} ${response.statusText} - ${errorBody}`);
+    }
+
+    const data = await response.json();
+    const message = data.content?.[0]?.text;
+
+    if (!message) {
+      throw new Error('No response from Anthropic API');
     }
 
     return message;
