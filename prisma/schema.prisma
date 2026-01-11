@@ -125,6 +125,7 @@ model AppRequest {
   screenDefinitions  ScreenDefinition[]
   userRoleDefinition UserRoleDefinition?
   userJourneys       UserJourney[]
+  screenMockups      ScreenMockup[]
 
   @@index([projectId])
   @@index([status])
@@ -250,6 +251,23 @@ model UserJourney {
 
   @@index([appRequestId])
   @@index([order])
+  @@index([status])
+}
+
+model ScreenMockup {
+  id             String    @id
+  appRequestId   String
+  screenName     String
+  layoutType     String    // "mobile" | "desktop"
+  imagePath      String
+  promptMetadata String    // JSON string
+  status         String    // "draft" | "awaiting_approval" | "approved"
+  createdAt      DateTime  @default(now())
+  approvedAt     DateTime?
+  appRequest     AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([screenName])
   @@index([status])
 }
 
