@@ -39,8 +39,15 @@ export interface BuildPromptData {
   appRequestId: string;
   title: string;
   content: string;
-  order: number;
+  sequenceIndex: number;
   status: PromptStatusValue;
+  feedback: string | null;
+  allowedCreateFiles: string[];
+  allowedModifyFiles: string[];
+  forbiddenFiles: string[];
+  fullRewriteFiles: string[];
+  dependencyManifest: Record<string, any>;
+  modificationIntent: Record<string, any>;
   createdAt: Date;
   approvedAt: Date | null;
 }
@@ -58,6 +65,47 @@ interface LLMConfig {
 }
 
 /**
+ * Execution Contract - what an execution agent is allowed/forbidden to do
+ */
+export interface ExecutionContract {
+  allowedCreateFiles: string[];
+  allowedModifyFiles: string[];
+  forbiddenFiles: string[];
+  fullRewriteFiles: string[];
+  dependencyManifest: DependencyManifest;
+  modificationIntent: ModificationIntent;
+}
+
+/**
+ * Dependency Manifest
+ */
+export interface DependencyManifest {
+  newDependencies: Record<string, string>; // package: version
+  devDependencies: Record<string, string>; // package: version
+  rationale: string[];
+}
+
+/**
+ * Modification Intent - what each file change should accomplish
+ */
+export interface ModificationIntent {
+  [filePath: string]: {
+    intent: string;
+    constraints: string[];
+  };
+}
+
+/**
+ * Build Ledger - track what's been committed in previous prompts
+ */
+interface BuildLedger {
+  filesCreated: Set<string>;
+  filesModified: Set<string>;
+  filesFullRewrite: Set<string>;
+  dependenciesAdded: Set<string>;
+}
+
+/**
  * Build phase definitions (deterministic order)
  */
 const BUILD_PHASES = [
@@ -69,6 +117,17 @@ const BUILD_PHASES = [
   'integrations',
   'polish',
 ] as const;
+
+/**
+ * Files that are ALWAYS forbidden from modification
+ */
+const ALWAYS_FORBIDDEN_FILES = [
+  'prisma/schema.prisma',
+  'prisma/migrations/**/*',
+  'src/conductor/**/*',
+  'src/agents/verification-agent.ts',
+  'docs/PROJECT_RULES.md',
+];
 
 export class BuildPromptEngineer {
   private prisma: PrismaClient;
@@ -103,7 +162,14 @@ export class BuildPromptEngineer {
 
     try {
       const context = await this.loadContext(appRequestId);
-      const promptContent = await this.generatePromptForPhase(appRequestId, 'scaffolding', context, 0);
+      const ledger = await this.buildLedgerFromPreviousPrompts(appRequestId);
+
+      // Generate execution contract
+      const contract = await this.generateExecutionContract('scaffolding', context, 0, ledger);
+      this.validateExecutionContract(contract);
+
+      // Generate prompt content with contract sections
+      const promptContent = await this.generatePromptForPhase(appRequestId, 'scaffolding', context, 0, contract);
 
       const prompt = await this.prisma.buildPrompt.create({
         data: {
@@ -111,8 +177,14 @@ export class BuildPromptEngineer {
           appRequestId,
           title: 'Project Scaffolding & Setup',
           content: promptContent,
-          order: 0,
+          sequenceIndex: 0,
           status: PromptStatus.AWAITING_APPROVAL,
+          allowedCreateFiles: JSON.stringify(contract.allowedCreateFiles),
+          allowedModifyFiles: JSON.stringify(contract.allowedModifyFiles),
+          forbiddenFiles: JSON.stringify(contract.forbiddenFiles),
+          fullRewriteFiles: JSON.stringify(contract.fullRewriteFiles),
+          dependencyManifest: JSON.stringify(contract.dependencyManifest),
+          modificationIntent: JSON.stringify(contract.modificationIntent),
         },
       });
 
@@ -132,7 +204,7 @@ export class BuildPromptEngineer {
 
     const prompt = await this.prisma.buildPrompt.findFirst({
       where: { appRequestId, status: PromptStatus.AWAITING_APPROVAL },
-      orderBy: { order: 'desc' },
+      orderBy: { sequenceIndex: 'desc' },
     });
 
     if (!prompt) {
@@ -149,7 +221,7 @@ export class BuildPromptEngineer {
 
     // Check if all prompts complete
     const context = await this.loadContext(appRequestId);
-    const nextOrder = approved.order + 1;
+    const nextOrder = approved.sequenceIndex + 1;
     const totalNeeded = this.calculateTotalPrompts(context);
 
     if (nextOrder >= totalNeeded) {
@@ -163,7 +235,7 @@ export class BuildPromptEngineer {
   async generateNextPrompt(appRequestId: string): Promise<BuildPromptData> {
     const approved = await this.prisma.buildPrompt.findMany({
       where: { appRequestId, status: PromptStatus.APPROVED },
-      orderBy: { order: 'asc' },
+      orderBy: { sequenceIndex: 'asc' },
     });
 
     const nextOrder = approved.length;
@@ -172,8 +244,15 @@ export class BuildPromptEngineer {
     await this.conductor.lock(appRequestId);
 
     try {
+      const ledger = await this.buildLedgerFromPreviousPrompts(appRequestId);
       const phase = this.determinePhase(nextOrder, context);
-      const promptContent = await this.generatePromptForPhase(appRequestId, phase, context, nextOrder);
+
+      // Generate execution contract
+      const contract = await this.generateExecutionContract(phase, context, nextOrder, ledger);
+      this.validateExecutionContract(contract);
+
+      // Generate prompt content with contract sections
+      const promptContent = await this.generatePromptForPhase(appRequestId, phase, context, nextOrder, contract);
       const title = this.getPhaseTitle(phase, nextOrder, context);
 
       const prompt = await this.prisma.buildPrompt.create({
@@ -182,8 +261,14 @@ export class BuildPromptEngineer {
           appRequestId,
           title,
           content: promptContent,
-          order: nextOrder,
+          sequenceIndex: nextOrder,
           status: PromptStatus.AWAITING_APPROVAL,
+          allowedCreateFiles: JSON.stringify(contract.allowedCreateFiles),
+          allowedModifyFiles: JSON.stringify(contract.allowedModifyFiles),
+          forbiddenFiles: JSON.stringify(contract.forbiddenFiles),
+          fullRewriteFiles: JSON.stringify(contract.fullRewriteFiles),
+          dependencyManifest: JSON.stringify(contract.dependencyManifest),
+          modificationIntent: JSON.stringify(contract.modificationIntent),
         },
       });
 
@@ -201,7 +286,7 @@ export class BuildPromptEngineer {
   async rejectCurrentPrompt(appRequestId: string, feedback?: string): Promise<void> {
     const prompt = await this.prisma.buildPrompt.findFirst({
       where: { appRequestId, status: PromptStatus.AWAITING_APPROVAL },
-      orderBy: { order: 'desc' },
+      orderBy: { sequenceIndex: 'desc' },
     });
 
     if (!prompt) {
@@ -249,22 +334,22 @@ export class BuildPromptEngineer {
     return 3 + context.screens.length + 3; // scaffolding + arch + auth + screens + logic + integrations + polish
   }
 
-  private determinePhase(order: number, context: { screens: string[] }): string {
-    if (order === 0) return 'scaffolding';
-    if (order === 1) return 'architecture';
-    if (order === 2) return 'auth';
-    if (order < 3 + context.screens.length) return 'ui_screens';
-    if (order === 3 + context.screens.length) return 'logic';
-    if (order === 4 + context.screens.length) return 'integrations';
+  private determinePhase(sequenceIndex: number, context: { screens: string[] }): string {
+    if (sequenceIndex === 0) return 'scaffolding';
+    if (sequenceIndex === 1) return 'architecture';
+    if (sequenceIndex === 2) return 'auth';
+    if (sequenceIndex < 3 + context.screens.length) return 'ui_screens';
+    if (sequenceIndex === 3 + context.screens.length) return 'logic';
+    if (sequenceIndex === 4 + context.screens.length) return 'integrations';
     return 'polish';
   }
 
-  private getPhaseTitle(phase: string, order: number, context: { screens: string[] }): string {
+  private getPhaseTitle(phase: string, sequenceIndex: number, context: { screens: string[] }): string {
     if (phase === 'scaffolding') return 'Project Scaffolding & Setup';
     if (phase === 'architecture') return 'Core Architecture & Database';
     if (phase === 'auth') return 'Authentication & Role System';
     if (phase === 'ui_screens') {
-      const screenIndex = order - 3;
+      const screenIndex = sequenceIndex - 3;
       return `UI Implementation: ${context.screens[screenIndex]}`;
     }
     if (phase === 'logic') return 'Business Logic & Services';
@@ -276,22 +361,26 @@ export class BuildPromptEngineer {
     appRequestId: string,
     phase: string,
     context: { rules: string; screens: string[]; appRequestId: string },
-    order: number
+    sequenceIndex: number,
+    contract: ExecutionContract
   ): Promise<string> {
     if (!this.llmConfig.apiKey) {
-      return this.generateFallbackPrompt(phase, context, order);
+      return this.generateFallbackPrompt(phase, context, sequenceIndex, contract);
     }
 
     // LLM generation would go here
-    return this.generateFallbackPrompt(phase, context, order);
+    return this.generateFallbackPrompt(phase, context, sequenceIndex, contract);
   }
 
   private generateFallbackPrompt(
     phase: string,
     context: { rules: string; screens: string[] },
-    order: number
+    sequenceIndex: number,
+    contract: ExecutionContract
   ): string {
-    return `# Build Prompt: ${this.getPhaseTitle(phase, order, context)}
+    const contractMarkdown = this.formatExecutionContractAsMarkdown(contract);
+
+    return `# Build Prompt: ${this.getPhaseTitle(phase, sequenceIndex, context)}
 
 ## Purpose
 Implement ${phase} phase of the application.
@@ -300,24 +389,31 @@ Implement ${phase} phase of the application.
 - Implement only what is defined in project rules
 - Do NOT invent features
 - Do NOT modify approved designs
+- ONLY touch files explicitly listed in "Allowed File Operations" below
+
+${contractMarkdown}
 
 ## Inputs (Authoritative)
 - Project Rules (MANDATORY - see below)
 - Approved Screens
 - Approved Mockups
+- Execution Contract (above)
 
 ## Required Outputs
-- Code files as specified
+- Code files as specified in contract
 - Passing tests
 
 ## Implementation Constraints
 - Follow project rules exactly
 - Use approved tech stack
 - Maintain folder structure
+- Respect all forbidden files
+- Install only declared dependencies
 
 ## Verification Requirements
 - All code must pass Phase 10 verification
 - No errors allowed
+- All files must match contract
 
 ## Git & Logging
 - Commit with descriptive message
@@ -327,6 +423,7 @@ Implement ${phase} phase of the application.
 - If requirements conflict, STOP
 - If rules unclear, STOP
 - If scope exceeded, STOP
+- If file not in contract, STOP
 
 ## Project Rules (BINDING)
 
@@ -342,14 +439,291 @@ ${context.rules}`;
     }
   }
 
+  /**
+   * Build ledger from all previously approved prompts
+   * This prevents file ownership conflicts and dependency duplication
+   */
+  private async buildLedgerFromPreviousPrompts(appRequestId: string): Promise<BuildLedger> {
+    const approvedPrompts = await this.prisma.buildPrompt.findMany({
+      where: { appRequestId, status: PromptStatus.APPROVED },
+      orderBy: { sequenceIndex: 'asc' },
+    });
+
+    const ledger: BuildLedger = {
+      filesCreated: new Set(),
+      filesModified: new Set(),
+      filesFullRewrite: new Set(),
+      dependenciesAdded: new Set(),
+    };
+
+    for (const prompt of approvedPrompts) {
+      const createFiles = JSON.parse(prompt.allowedCreateFiles) as string[];
+      const modifyFiles = JSON.parse(prompt.allowedModifyFiles) as string[];
+      const rewriteFiles = JSON.parse(prompt.fullRewriteFiles) as string[];
+      const manifest = JSON.parse(prompt.dependencyManifest) as DependencyManifest;
+
+      createFiles.forEach((f) => ledger.filesCreated.add(f));
+      modifyFiles.forEach((f) => ledger.filesModified.add(f));
+      rewriteFiles.forEach((f) => ledger.filesFullRewrite.add(f));
+
+      Object.keys(manifest.newDependencies || {}).forEach((d) => ledger.dependenciesAdded.add(d));
+      Object.keys(manifest.devDependencies || {}).forEach((d) => ledger.dependenciesAdded.add(d));
+    }
+
+    return ledger;
+  }
+
+  /**
+   * Generate execution contract for a specific phase
+   * This determines what files can be touched and what dependencies are needed
+   */
+  private async generateExecutionContract(
+    phase: string,
+    context: { screens: string[]; rules: string },
+    sequenceIndex: number,
+    ledger: BuildLedger
+  ): Promise<ExecutionContract> {
+    // Default contract structure
+    const contract: ExecutionContract = {
+      allowedCreateFiles: [],
+      allowedModifyFiles: [],
+      forbiddenFiles: [...ALWAYS_FORBIDDEN_FILES],
+      fullRewriteFiles: [],
+      dependencyManifest: {
+        newDependencies: {},
+        devDependencies: {},
+        rationale: [],
+      },
+      modificationIntent: {},
+    };
+
+    // Phase-specific file operations
+    switch (phase) {
+      case 'scaffolding':
+        contract.allowedCreateFiles = [
+          'package.json',
+          'tsconfig.json',
+          '.gitignore',
+          'README.md',
+          'src/index.ts',
+          'src/types.ts',
+        ];
+        contract.dependencyManifest.newDependencies = {
+          'express': '^4.18.2',
+          'dotenv': '^16.0.3',
+        };
+        contract.dependencyManifest.devDependencies = {
+          'typescript': '^5.0.0',
+          '@types/node': '^20.0.0',
+          '@types/express': '^4.17.17',
+        };
+        contract.dependencyManifest.rationale = [
+          'express: Web server framework',
+          'dotenv: Environment variable management',
+          'typescript: Type-safe development',
+        ];
+        break;
+
+      case 'architecture':
+        contract.allowedCreateFiles = [
+          'src/db/connection.ts',
+          'src/middleware/error-handler.ts',
+          'src/utils/logger.ts',
+        ];
+        break;
+
+      case 'auth':
+        contract.allowedCreateFiles = [
+          'src/auth/auth-service.ts',
+          'src/auth/jwt-utils.ts',
+          'src/middleware/auth-middleware.ts',
+        ];
+        contract.dependencyManifest.newDependencies = {
+          'jsonwebtoken': '^9.0.0',
+          'bcrypt': '^5.1.0',
+        };
+        contract.dependencyManifest.rationale = [
+          'jsonwebtoken: JWT token generation/validation',
+          'bcrypt: Password hashing',
+        ];
+        break;
+
+      case 'ui_screens':
+        const screenIndex = sequenceIndex - 3;
+        const screenName = context.screens[screenIndex];
+        contract.allowedCreateFiles = [
+          `src/screens/${screenName}.tsx`,
+          `src/screens/${screenName}.module.css`,
+        ];
+        break;
+
+      case 'logic':
+        contract.allowedCreateFiles = ['src/services/business-logic.ts'];
+        contract.allowedModifyFiles = ['src/index.ts'];
+        break;
+
+      case 'integrations':
+        contract.allowedCreateFiles = ['src/integrations/api-client.ts'];
+        break;
+
+      case 'polish':
+        contract.allowedModifyFiles = ['README.md', 'package.json'];
+        break;
+    }
+
+    // Remove dependencies that already exist in ledger
+    Object.keys(contract.dependencyManifest.newDependencies).forEach((dep) => {
+      if (ledger.dependenciesAdded.has(dep)) {
+        delete contract.dependencyManifest.newDependencies[dep];
+      }
+    });
+
+    // Check for file ownership conflicts
+    for (const file of contract.allowedCreateFiles) {
+      if (ledger.filesCreated.has(file)) {
+        throw new Error(
+          `File ownership conflict: ${file} already created in previous prompt`
+        );
+      }
+    }
+
+    // Generate modification intent for each file
+    [...contract.allowedCreateFiles, ...contract.allowedModifyFiles, ...contract.fullRewriteFiles].forEach((file) => {
+      contract.modificationIntent[file] = {
+        intent: `Implement ${phase} phase requirements for ${file}`,
+        constraints: ['Follow project rules', 'Maintain existing API contracts'],
+      };
+    });
+
+    return contract;
+  }
+
+  /**
+   * Validate execution contract
+   * Ensures contract is complete and doesn't violate rules
+   */
+  private validateExecutionContract(contract: ExecutionContract): void {
+    // Check for overlaps between allowed and forbidden
+    const allAllowed = [
+      ...contract.allowedCreateFiles,
+      ...contract.allowedModifyFiles,
+      ...contract.fullRewriteFiles,
+    ];
+
+    for (const file of allAllowed) {
+      for (const forbidden of contract.forbiddenFiles) {
+        if (file.match(forbidden.replace('**/*', '.*'))) {
+          throw new Error(`Contract violation: ${file} appears in both allowed and forbidden lists`);
+        }
+      }
+    }
+
+    // Ensure all paths are relative
+    for (const file of allAllowed) {
+      if (file.startsWith('/') || file.includes('..')) {
+        throw new Error(`Invalid file path: ${file} must be relative and inside project root`);
+      }
+    }
+
+    // Check that dependency manifest has rationale if dependencies exist
+    const hasDeps =
+      Object.keys(contract.dependencyManifest.newDependencies).length > 0 ||
+      Object.keys(contract.dependencyManifest.devDependencies).length > 0;
+
+    if (hasDeps && contract.dependencyManifest.rationale.length === 0) {
+      throw new Error('Dependencies declared but no rationale provided');
+    }
+
+    // Ensure modification intent exists for all files
+    for (const file of allAllowed) {
+      if (!contract.modificationIntent[file]) {
+        throw new Error(`Missing modification intent for ${file}`);
+      }
+    }
+  }
+
+  /**
+   * Format execution contract as Markdown sections
+   */
+  private formatExecutionContractAsMarkdown(contract: ExecutionContract): string {
+    let markdown = '\n## Allowed File Operations\n\n';
+
+    markdown += '### Files to CREATE\n';
+    if (contract.allowedCreateFiles.length > 0) {
+      contract.allowedCreateFiles.forEach((f) => (markdown += `- ${f}\n`));
+    } else {
+      markdown += '- (none)\n';
+    }
+
+    markdown += '\n### Files to MODIFY (PATCH ONLY)\n';
+    if (contract.allowedModifyFiles.length > 0) {
+      contract.allowedModifyFiles.forEach((f) => (markdown += `- ${f}\n`));
+    } else {
+      markdown += '- (none)\n';
+    }
+
+    markdown += '\n### Files to MODIFY (FULL REWRITE)\n';
+    if (contract.fullRewriteFiles.length > 0) {
+      contract.fullRewriteFiles.forEach((f) => (markdown += `- ${f}\n`));
+    } else {
+      markdown += '- (none)\n';
+    }
+
+    markdown += '\n### Files FORBIDDEN to Touch\n';
+    contract.forbiddenFiles.forEach((f) => (markdown += `- ${f}\n`));
+
+    markdown += '\n## Dependency Changes\n\n';
+
+    markdown += '### New Dependencies\n';
+    const newDeps = Object.entries(contract.dependencyManifest.newDependencies);
+    if (newDeps.length > 0) {
+      newDeps.forEach(([pkg, ver]) => (markdown += `- ${pkg}@${ver}\n`));
+    } else {
+      markdown += '- (none)\n';
+    }
+
+    markdown += '\n### Dev Dependencies\n';
+    const devDeps = Object.entries(contract.dependencyManifest.devDependencies);
+    if (devDeps.length > 0) {
+      devDeps.forEach(([pkg, ver]) => (markdown += `- ${pkg}@${ver}\n`));
+    } else {
+      markdown += '- (none)\n';
+    }
+
+    markdown += '\n### Rationale\n';
+    if (contract.dependencyManifest.rationale.length > 0) {
+      contract.dependencyManifest.rationale.forEach((r) => (markdown += `- ${r}\n`));
+    } else {
+      markdown += '- (none)\n';
+    }
+
+    markdown += '\n## Modification Intent\n\n';
+    Object.entries(contract.modificationIntent).forEach(([file, { intent, constraints }]) => {
+      markdown += `**${file}**\n`;
+      markdown += `- Intent: ${intent}\n`;
+      markdown += `- Constraints:\n`;
+      constraints.forEach((c) => (markdown += `  - ${c}\n`));
+      markdown += '\n';
+    });
+
+    return markdown;
+  }
+
   private toPromptData(prompt: BuildPrompt): BuildPromptData {
     return {
       id: prompt.id,
       appRequestId: prompt.appRequestId,
       title: prompt.title,
       content: prompt.content,
-      order: prompt.order,
+      sequenceIndex: prompt.sequenceIndex,
       status: prompt.status as PromptStatusValue,
+      feedback: prompt.feedback,
+      allowedCreateFiles: JSON.parse(prompt.allowedCreateFiles),
+      allowedModifyFiles: JSON.parse(prompt.allowedModifyFiles),
+      forbiddenFiles: JSON.parse(prompt.forbiddenFiles),
+      fullRewriteFiles: JSON.parse(prompt.fullRewriteFiles),
+      dependencyManifest: JSON.parse(prompt.dependencyManifest),
+      modificationIntent: JSON.parse(prompt.modificationIntent),
       createdAt: prompt.createdAt,
       approvedAt: prompt.approvedAt,
     };

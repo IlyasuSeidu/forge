@@ -120,10 +120,10 @@ async function test2_GenerateFirstPrompt(appRequestId: string) {
 
   const prompt = await engineer.start(appRequestId);
   console.log(`✅ First prompt generated: ${prompt.title}`);
-  console.log(`   Order: ${prompt.order}`);
+  console.log(`   Order: ${prompt.sequenceIndex}`);
   console.log(`   Status: ${prompt.status}\n`);
 
-  return prompt.order === 0;
+  return prompt.sequenceIndex === 0;
 }
 
 async function test3_CannotGenerateNextWithoutApproval(appRequestId: string) {
@@ -151,9 +151,9 @@ async function test4_ApproveAndGenerateSequentially(appRequestId: string) {
 
   const second = await engineer.generateNextPrompt(appRequestId);
   console.log(`✅ Second prompt generated: ${second.title}`);
-  console.log(`   Order: ${second.order}\n`);
+  console.log(`   Order: ${second.sequenceIndex}\n`);
 
-  return second.order === 1;
+  return second.sequenceIndex === 1;
 }
 
 async function test5_RejectAllowsRegeneration(appRequestId: string) {
@@ -167,7 +167,7 @@ async function test5_RejectAllowsRegeneration(appRequestId: string) {
   const regenerated = await engineer.generateNextPrompt(appRequestId);
   console.log(`✅ Prompt regenerated: ${regenerated.title}\n`);
 
-  return regenerated.order === 1;
+  return regenerated.sequenceIndex === 1;
 }
 
 async function test6_CompleteAllPrompts(appRequestId: string) {

@@ -44,15 +44,15 @@ model Task {
 }
 
 model Execution {
-  id               String             @id
-  projectId        String
-  appRequestId     String?
-  status           String             @default("idle")
-  startedAt        DateTime?
-  finishedAt       DateTime?
-  project          Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  events           ExecutionEvent[]
-  approvals        Approval[]
+  id           String           @id
+  projectId    String
+  appRequestId String?
+  status       String           @default("idle")
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  events       ExecutionEvent[]
+  approvals    Approval[]
 
   @@index([projectId])
   @@index([appRequestId])
@@ -107,16 +107,16 @@ model Approval {
 }
 
 model AppRequest {
-  id                 String                @id
+  id                 String              @id
   projectId          String
   prompt             String
-  status             String                @default("pending")
+  status             String              @default("pending")
   prdPath            String?
   executionId        String?
   errorReason        String?
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-  project            Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  project            Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   verifications      Verification[]
   conductorState     ConductorState?
   foundrySession     FoundrySession?
@@ -134,14 +134,14 @@ model AppRequest {
 }
 
 model ConductorState {
-  id            String   @id
-  appRequestId  String   @unique
+  id            String     @id
+  appRequestId  String     @unique
   currentStatus String
-  locked        Boolean  @default(false)
-  awaitingHuman Boolean  @default(false)
+  locked        Boolean    @default(false)
+  awaitingHuman Boolean    @default(false)
   lastAgent     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   appRequest    AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
@@ -152,9 +152,9 @@ model ConductorState {
 model FoundrySession {
   id               String            @id
   appRequestId     String            @unique
-  status           String            // "asking" | "awaiting_approval" | "approved"
+  status           String // "asking" | "awaiting_approval" | "approved"
   currentStep      Int               @default(0)
-  answers          String            // JSON string containing answers
+  answers          String // JSON string containing answers
   draftPrompt      String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -166,16 +166,16 @@ model FoundrySession {
 }
 
 model SyntheticAnswer {
-  id               String   @id
+  id               String         @id
   appRequestId     String
   foundrySessionId String
   step             Int
   question         String
   proposedAnswer   String
   finalAnswer      String?
-  status           String   // "proposed" | "approved" | "adjusted"
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  status           String // "proposed" | "approved" | "adjusted"
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   foundrySession   FoundrySession @relation(fields: [foundrySessionId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
@@ -184,14 +184,14 @@ model SyntheticAnswer {
 }
 
 model PlanningDocument {
-  id          String    @id
+  id           String     @id
   appRequestId String
-  type        String    // "MASTER_PLAN" | "IMPLEMENTATION_PLAN"
-  content     String    // Markdown string
-  status      String    // "draft" | "awaiting_approval" | "approved"
-  createdAt   DateTime  @default(now())
-  approvedAt  DateTime?
-  appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+  type         String // "MASTER_PLAN" | "IMPLEMENTATION_PLAN"
+  content      String // Markdown string
+  status       String // "draft" | "awaiting_approval" | "approved"
+  createdAt    DateTime   @default(now())
+  approvedAt   DateTime?
+  appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([type])
@@ -199,28 +199,28 @@ model PlanningDocument {
 }
 
 model ScreenIndex {
-  id          String    @id
-  appRequestId String   @unique
-  screens     String    // JSON array of screen names
-  status      String    // "draft" | "awaiting_approval" | "approved"
-  createdAt   DateTime  @default(now())
-  approvedAt  DateTime?
-  appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+  id           String     @id
+  appRequestId String     @unique
+  screens      String // JSON array of screen names
+  status       String // "draft" | "awaiting_approval" | "approved"
+  createdAt    DateTime   @default(now())
+  approvedAt   DateTime?
+  appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([status])
 }
 
 model ScreenDefinition {
-  id          String    @id
+  id           String     @id
   appRequestId String
-  screenName  String
-  content     String    // Markdown string
-  order       Int
-  status      String    // "draft" | "awaiting_approval" | "approved"
-  createdAt   DateTime  @default(now())
-  approvedAt  DateTime?
-  appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+  screenName   String
+  content      String // Markdown string
+  order        Int
+  status       String // "draft" | "awaiting_approval" | "approved"
+  createdAt    DateTime   @default(now())
+  approvedAt   DateTime?
+  appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([order])
@@ -228,28 +228,28 @@ model ScreenDefinition {
 }
 
 model UserRoleDefinition {
-  id          String    @id
-  appRequestId String   @unique
-  content     String    // Markdown table
-  status      String    // "draft" | "awaiting_approval" | "approved"
-  createdAt   DateTime  @default(now())
-  approvedAt  DateTime?
-  appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+  id           String     @id
+  appRequestId String     @unique
+  content      String // Markdown table
+  status       String // "draft" | "awaiting_approval" | "approved"
+  createdAt    DateTime   @default(now())
+  approvedAt   DateTime?
+  appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([status])
 }
 
 model UserJourney {
-  id          String    @id
+  id           String     @id
   appRequestId String
-  roleName    String
-  content     String    // Markdown journey steps
-  order       Int
-  status      String    // "draft" | "awaiting_approval" | "approved"
-  createdAt   DateTime  @default(now())
-  approvedAt  DateTime?
-  appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+  roleName     String
+  content      String // Markdown journey steps
+  order        Int
+  status       String // "draft" | "awaiting_approval" | "approved"
+  createdAt    DateTime   @default(now())
+  approvedAt   DateTime?
+  appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([order])
@@ -257,14 +257,14 @@ model UserJourney {
 }
 
 model ScreenMockup {
-  id             String    @id
+  id             String     @id
   appRequestId   String
   screenName     String
-  layoutType     String    // "mobile" | "desktop"
+  layoutType     String // "mobile" | "desktop"
   imagePath      String
-  promptMetadata String    // JSON string
-  status         String    // "draft" | "awaiting_approval" | "approved"
-  createdAt      DateTime  @default(now())
+  promptMetadata String // JSON string
+  status         String // "draft" | "awaiting_approval" | "approved"
+  createdAt      DateTime   @default(now())
   approvedAt     DateTime?
   appRequest     AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
@@ -274,31 +274,41 @@ model ScreenMockup {
 }
 
 model ProjectRuleSet {
-  id          String    @id
-  appRequestId String   @unique
-  content     String    // Markdown document
-  status      String    // "draft" | "awaiting_approval" | "approved"
-  createdAt   DateTime  @default(now())
-  approvedAt  DateTime?
-  appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+  id           String     @id
+  appRequestId String     @unique
+  content      String // Markdown document
+  status       String // "draft" | "awaiting_approval" | "approved"
+  createdAt    DateTime   @default(now())
+  approvedAt   DateTime?
+  appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([status])
 }
 
 model BuildPrompt {
-  id          String    @id
-  appRequestId String
-  title       String
-  content     String    // Markdown document
-  order       Int
-  status      String    // "draft" | "awaiting_approval" | "approved"
-  createdAt   DateTime  @default(now())
-  approvedAt  DateTime?
-  appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+  id            String  @id
+  appRequestId  String
+  title         String
+  content       String // Markdown document
+  sequenceIndex Int
+  status        String // "draft" | "awaiting_approval" | "approved"
+  feedback      String?
+
+  // Execution contract fields
+  allowedCreateFiles String @default("[]") // JSON array
+  allowedModifyFiles String @default("[]") // JSON array
+  forbiddenFiles     String @default("[]") // JSON array
+  fullRewriteFiles   String @default("[]") // JSON array
+  dependencyManifest String @default("{}") // JSON object
+  modificationIntent String @default("{}") // JSON object
+
+  createdAt  DateTime   @default(now())
+  approvedAt DateTime?
+  appRequest AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
-  @@index([order])
+  @@index([sequenceIndex])
   @@index([status])
 }
 
