@@ -128,6 +128,7 @@ model AppRequest {
   screenMockups      ScreenMockup[]
   projectRuleSet     ProjectRuleSet?
   buildPrompts       BuildPrompt[]
+  executionPlans     ExecutionPlan[]
 
   @@index([projectId])
   @@index([status])
@@ -308,6 +309,48 @@ model BuildPrompt {
   appRequest AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
+  @@index([sequenceIndex])
+  @@index([status])
+}
+
+model ExecutionPlan {
+  id            String   @id
+  appRequestId  String
+  buildPromptId String
+  status        String   // "pending" | "approved" | "rejected"
+  createdAt     DateTime @default(now())
+  approvedAt    DateTime?
+
+  appRequest    AppRequest      @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+  units         ExecutionUnit[]
+
+  @@index([appRequestId])
+  @@index([buildPromptId])
+  @@index([status])
+}
+
+model ExecutionUnit {
+  id                 String   @id
+  executionPlanId    String
+  sequenceIndex      Int
+  title              String
+  description        String
+
+  // Execution contract for this unit
+  allowedCreateFiles String @default("[]") // JSON array
+  allowedModifyFiles String @default("[]") // JSON array
+  forbiddenFiles     String @default("[]") // JSON array
+  fullRewriteFiles   String @default("[]") // JSON array
+  dependencyChanges  String @default("{}") // JSON object
+  modificationIntent String @default("{}") // JSON object
+
+  status        String   // "pending" | "in_progress" | "completed" | "failed"
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  executionPlan ExecutionPlan @relation(fields: [executionPlanId], references: [id], onDelete: Cascade)
+
+  @@index([executionPlanId])
   @@index([sequenceIndex])
   @@index([status])
 }
