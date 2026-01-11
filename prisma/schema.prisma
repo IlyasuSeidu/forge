@@ -107,20 +107,37 @@ model Approval {
 }
 
 model AppRequest {
-  id            String         @id
-  projectId     String
-  prompt        String
-  status        String         @default("pending")
-  prdPath       String?
-  executionId   String?
-  errorReason   String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  verifications Verification[]
+  id             String          @id
+  projectId      String
+  prompt         String
+  status         String          @default("pending")
+  prdPath        String?
+  executionId    String?
+  errorReason    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  verifications  Verification[]
+  conductorState ConductorState?
 
   @@index([projectId])
   @@index([status])
+}
+
+model ConductorState {
+  id            String   @id
+  appRequestId  String   @unique
+  currentStatus String
+  locked        Boolean  @default(false)
+  awaitingHuman Boolean  @default(false)
+  lastAgent     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  appRequest    AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([locked])
+  @@index([awaitingHuman])
 }
 
 model Verification {

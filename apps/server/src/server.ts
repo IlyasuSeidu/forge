@@ -8,6 +8,7 @@ import {
   AppRequestService,
   VerificationService,
 } from './services/index.js';
+import { ForgeConductor } from './conductor/index.js';
 import { healthRoutes } from './routes/health.js';
 import { projectRoutes } from './routes/projects.js';
 import { taskRoutes } from './routes/tasks.js';
@@ -52,6 +53,12 @@ export async function createServer() {
     fastify.log,
     approvalService,
     executionService
+  );
+
+  // Initialize Forge Conductor (master orchestration engine)
+  const forgeConductor = new ForgeConductor(
+    executionService.getPrismaClient(),
+    fastify.log
   );
 
   // Add JSON content type parser
