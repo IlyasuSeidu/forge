@@ -230,11 +230,22 @@ model ScreenIndex {
   screens      String // JSON array of screen names
   status       String // "draft" | "awaiting_approval" | "approved"
   createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   approvedAt   DateTime?
+
+  // Immutability & Versioning (Production Hardening)
+  screenIndexVersion Int      @default(1)
+  screenIndexHash    String?  // SHA-256 hash of approved index
+  approvedBy         String?  // "human"
+  basePromptHash     String   @default("") // Reference to Base Prompt
+  planningDocsHash   String   @default("") // SHA-256 of Master + Implementation Plans
+
   appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([status])
+  @@index([screenIndexHash])
+  @@index([basePromptHash])
 }
 
 model ScreenDefinition {
@@ -245,12 +256,24 @@ model ScreenDefinition {
   order        Int
   status       String // "draft" | "awaiting_approval" | "approved"
   createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   approvedAt   DateTime?
+
+  // Immutability & Versioning (Production Hardening)
+  screenVersion    Int      @default(1)
+  screenHash       String?  // SHA-256 hash of approved screen
+  approvedBy       String?  // "human"
+  screenIndexHash  String   @default("") // Reference to approved Screen Index
+  basePromptHash   String   @default("") // Reference to Base Prompt
+  planningDocsHash String   @default("") // SHA-256 of planning docs
+
   appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([order])
   @@index([status])
+  @@index([screenHash])
+  @@index([screenIndexHash])
 }
 
 model UserRoleDefinition {
