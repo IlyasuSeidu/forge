@@ -107,18 +107,19 @@ model Approval {
 }
 
 model AppRequest {
-  id             String          @id
+  id             String           @id
   projectId      String
   prompt         String
-  status         String          @default("pending")
+  status         String           @default("pending")
   prdPath        String?
   executionId    String?
   errorReason    String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   verifications  Verification[]
   conductorState ConductorState?
+  foundrySession FoundrySession?
 
   @@index([projectId])
   @@index([status])
@@ -138,6 +139,21 @@ model ConductorState {
   @@index([appRequestId])
   @@index([locked])
   @@index([awaitingHuman])
+}
+
+model FoundrySession {
+  id           String   @id
+  appRequestId String   @unique
+  status       String   // "asking" | "awaiting_approval" | "approved"
+  currentStep  Int      @default(0)
+  answers      String   // JSON string containing answers
+  draftPrompt  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([status])
 }
 
 model Verification {
