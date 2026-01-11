@@ -129,6 +129,7 @@ model AppRequest {
   projectRuleSet     ProjectRuleSet?
   buildPrompts       BuildPrompt[]
   executionPlans     ExecutionPlan[]
+  completionDecisions CompletionDecision[]
 
   @@index([projectId])
   @@index([status])
@@ -368,4 +369,18 @@ model Verification {
   @@index([appRequestId])
   @@index([executionId])
   @@index([status])
+}
+
+model CompletionDecision {
+  id              String     @id
+  appRequestId    String
+  executionUnitId String?
+  decisionType    String     // "proceed_to_next_unit" | "retry_with_repair" | "escalate_to_human" | "mark_completed" | "mark_failed"
+  reason          String?
+  createdAt       DateTime   @default(now())
+  appRequest      AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([decisionType])
+  @@index([createdAt])
 }
