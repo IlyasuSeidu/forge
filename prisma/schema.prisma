@@ -127,6 +127,7 @@ model AppRequest {
   userJourneys       UserJourney[]
   screenMockups      ScreenMockup[]
   projectRuleSet     ProjectRuleSet?
+  buildPrompts       BuildPrompt[]
 
   @@index([projectId])
   @@index([status])
@@ -282,6 +283,22 @@ model ProjectRuleSet {
   appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
+  @@index([status])
+}
+
+model BuildPrompt {
+  id          String    @id
+  appRequestId String
+  title       String
+  content     String    // Markdown document
+  order       Int
+  status      String    // "draft" | "awaiting_approval" | "approved"
+  createdAt   DateTime  @default(now())
+  approvedAt  DateTime?
+  appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([order])
   @@index([status])
 }
 
