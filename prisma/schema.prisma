@@ -158,6 +158,13 @@ model FoundrySession {
   currentStep      Int               @default(0)
   answers          String // JSON string containing answers
   draftPrompt      String?
+
+  // Immutability & Versioning (Production Hardening)
+  basePromptVersion Int              @default(1)
+  basePromptHash    String?          // SHA-256 hash of approved content
+  approvedAt        DateTime?        // When prompt was approved
+  approvedBy        String?          // "human" | "synthetic_founder"
+
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   appRequest       AppRequest        @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
@@ -165,6 +172,7 @@ model FoundrySession {
 
   @@index([appRequestId])
   @@index([status])
+  @@index([basePromptHash])
 }
 
 model SyntheticAnswer {
