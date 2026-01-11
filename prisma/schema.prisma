@@ -126,6 +126,7 @@ model AppRequest {
   userRoleDefinition UserRoleDefinition?
   userJourneys       UserJourney[]
   screenMockups      ScreenMockup[]
+  projectRuleSet     ProjectRuleSet?
 
   @@index([projectId])
   @@index([status])
@@ -268,6 +269,19 @@ model ScreenMockup {
 
   @@index([appRequestId])
   @@index([screenName])
+  @@index([status])
+}
+
+model ProjectRuleSet {
+  id          String    @id
+  appRequestId String   @unique
+  content     String    // Markdown document
+  status      String    // "draft" | "awaiting_approval" | "approved"
+  createdAt   DateTime  @default(now())
+  approvedAt  DateTime?
+  appRequest  AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
   @@index([status])
 }
 
