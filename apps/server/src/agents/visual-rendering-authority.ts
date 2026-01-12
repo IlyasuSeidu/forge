@@ -166,7 +166,7 @@ export class VisualRenderingAuthority {
     this.validateEnvelope();
 
     // Lock conductor
-    await this.conductor.lock(appRequestId, VISUAL_RENDERING_ENVELOPE.agentName);
+    await this.conductor.lock(appRequestId);
 
     try {
       // Load isolated context (hash-based, approved artifacts only)
@@ -215,7 +215,7 @@ export class VisualRenderingAuthority {
       );
 
       // Pause conductor for human approval
-      await this.conductor.pause(
+      await this.conductor.pauseForHuman(
         appRequestId,
         `Visual expansion for "${screenName}" (${layoutType}) ready for review`
       );
