@@ -331,20 +331,32 @@ model UserJourney {
 }
 
 model ScreenMockup {
-  id             String     @id
-  appRequestId   String
-  screenName     String
-  layoutType     String // "mobile" | "desktop"
-  imagePath      String
-  promptMetadata String // JSON string
-  status         String // "draft" | "awaiting_approval" | "approved"
-  createdAt      DateTime   @default(now())
-  approvedAt     DateTime?
-  appRequest     AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+  id               String     @id
+  appRequestId     String
+  screenName       String
+  layoutType       String // "mobile" | "desktop"
+  imagePath        String
+  promptMetadata   String // JSON string (includes contract, imageHash, etc.)
+  status           String // "draft" | "awaiting_approval" | "approved"
+  createdAt        DateTime   @default(now())
+  approvedAt       DateTime?
+  // Immutability & Hash Chain (Visual Forge Production Hardening)
+  mockupHash       String? // SHA-256 of mockup contract (locked on approval)
+  mockupVersion    Int        @default(1)
+  approvedBy       String? // "human" | null
+  imageHash        String? // SHA-256 of image file
+  screenHash       String? // Reference to approved Screen Definition
+  screenIndexHash  String? // Reference to approved Screen Index
+  journeyHash      String? // Optional: relevant journey hash
+  basePromptHash   String? // Traceability to base prompt
+  planningDocsHash String? // Traceability to planning documents
+  appRequest       AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([screenName])
   @@index([status])
+  @@index([mockupHash])
+  @@index([screenHash])
 }
 
 model ProjectRuleSet {
