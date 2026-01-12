@@ -43,10 +43,11 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 
 #### **Day 3: Visual Intelligence** (Jan 12)
 - ✅ **Visual Rendering Authority (Tier 3.5)** - Deterministic visual expansion
+- ✅ **Deterministic Visual Normalizer (Tier 3.5)** - Prevents visual maximalism 🆕
 - ✅ **Visual Forge upgraded to GPT Image 1.5** (4× faster than DALL-E 3)
 - ✅ Real OpenAI API integration (3.06 MB mockups in 34 seconds)
 - ✅ 10/10 test pass rate across all hardened agents
-- ✅ ChatGPT-level output quality achieved
+- ✅ ChatGPT-level output quality + professional restraint achieved
 
 ### 🎯 What's Fully Implemented
 
@@ -137,14 +138,16 @@ Forge uses **specialized agents** organized in a 5-tier hierarchy. Each agent ha
 | Agent | Role | Output | Model |
 |-------|------|--------|-------|
 | **Visual Rendering Authority** ⭐ | Deterministic visual expansion with closed vocabularies | `visual_contracts/*.json` | Claude Sonnet 4.5 |
-| **Visual Forge** | Generates high-fidelity UI mockups | `mockups/*.png` (3.06 MB) | GPT Image 1.5 + DALL-E 3 |
+| **Deterministic Visual Normalizer** 🆕 | Constrains visual complexity to prevent maximalism | `normalization_contracts/*.json` | Claude Sonnet 4.5 |
+| **Visual Forge** | Generates high-fidelity UI mockups with constraints | `mockups/*.png` (3.06 MB) | GPT Image 1.5 + DALL-E 3 |
 | **Constraint Compiler** | Produces binding development rules | `rules.md` | GPT-5 |
 
 **Human Approval Gate #3** ✋ *Approve VRA expansion contracts*
+**Human Approval Gate #3.5** ✋ *Approve DVNL normalization contracts* 🆕
 **Human Approval Gate #4** ✋ *Approve visual mockups*
 **Human Approval Gate #5** ✋ *Validate architecture rules*
 
-**Visual Rendering Authority (NEW - Jan 12, 2026)**:
+**Visual Rendering Authority (Jan 12, 2026)**:
 - **Tier 3.5** - Sits between Screen Cartographer and Visual Forge
 - **Purpose**: Eliminates "visual density variance" by creating explicit, human-approved contracts
 - **Key Innovation**: Closed vocabularies for layouts, sections, charts (prevents arbitrary AI decisions)
@@ -152,12 +155,22 @@ Forge uses **specialized agents** organized in a 5-tier hierarchy. Each agent ha
 - **Result**: 5× more detailed prompts → ChatGPT-level mockup quality
 - **Status**: 10/10 tests passing with real Claude API integration
 
+**Deterministic Visual Normalizer (NEW - Jan 12, 2026)** 🆕:
+- **Tier 3.5** - Sits between VRA and Visual Forge
+- **Purpose**: Prevents visual maximalism (radial gauges, speedometers, 8+ cards) by enforcing density caps
+- **Key Innovation**: Explicit constraints (maxMetricCards, disallowedVisuals, complexity caps)
+- **Output**: Immutable `VisualNormalizationContract` with hash-locking
+- **Result**: ChatGPT-level restraint → Professional, balanced designs
+- **Status**: 10/10 tests passing with real Claude API integration
+- **Impact**: Solves "ChatGPT images look better" problem
+
 **Visual Forge Upgrades (Jan 12, 2026)**:
 - **Primary Model**: GPT Image 1.5 (4× faster than DALL-E 3)
 - **Smart Fallback**: DALL-E 3 when organization unverified
-- **Contract Integration**: Consumes VRA contracts for deterministic rendering
+- **VRA Integration**: Consumes VRA contracts for rich, hierarchical content (ChatGPT-level detail)
+- **DVNL Integration**: Consumes DVNL contracts for explicit constraints (ChatGPT-level restraint) 🆕
 - **Performance**: 3.06 MB high-quality mockups generated in 34 seconds
-- **Quality**: Achieved ChatGPT-level output fidelity
+- **Quality**: Achieved ChatGPT-level output fidelity + professional design discipline
 
 ---
 
@@ -204,7 +217,11 @@ Planning Docs (SHA-256)
   ↓
 Screen Index (SHA-256)
   ↓
+Screen Definitions (SHA-256)
+  ↓
 VRA Contracts (SHA-256)
+  ↓
+DVNL Contracts (SHA-256) ← NEW
   ↓
 Mockups (SHA-256)
   ↓
@@ -269,28 +286,31 @@ Verification rules may only be **strengthened** (more checks, stricter rules) or
    ↓
 6. Journey Orchestrator defines user flows
    ↓
-7. Visual Rendering Authority creates expansion contract (NEW!)
+7. Visual Rendering Authority creates expansion contract
    → [Human Approval #3] ✋
    ↓
-8. Visual Forge generates pixel-perfect mockups
+8. Deterministic Visual Normalizer constrains visual complexity (NEW!)
+   → [Human Approval #3.5] ✋
+   ↓
+9. Visual Forge generates pixel-perfect mockups
    → [Human Approval #4] ✋
    ↓
-9. Constraint Compiler locks architecture rules
+10. Constraint Compiler locks architecture rules
    → [Human Approval #5] ✋
    ↓
-10. Build Prompt Engineer creates code prompts
+11. Build Prompt Engineer creates code prompts
    ↓
-11. Execution Planner breaks into micro-tasks
+12. Execution Planner breaks into micro-tasks
    ↓
-12. Forge Implementer writes actual code
+13. Forge Implementer writes actual code
    ↓
-13. Phase 10 Verification validates everything
+14. Phase 10 Verification validates everything
    ↓
-14. Self-Healing fixes issues (max 5 attempts)
+15. Self-Healing fixes issues (max 5 attempts)
    ↓
-15. Completion Auditor confirms quality
+16. Completion Auditor confirms quality
    ↓
-16. ✅ Working app ready for download!
+17. ✅ Working app ready for download!
    → [Human Escalation #6] ✋ (only if verification fails after max attempts)
 ```
 
@@ -335,6 +355,7 @@ Verification rules may only be **strengthened** (more checks, stricter rules) or
 ### Agent Test Coverage
 - **All Hardened Agents**: 10/10 test pass rate
 - **Visual Rendering Authority**: 10/10 with real Claude API
+- **Deterministic Visual Normalizer**: 10/10 with real Claude API 🆕
 - **Visual Forge**: 10/10 production hardening tests
 - **Journey Orchestrator**: 10/10 determinism tests
 
@@ -346,9 +367,9 @@ Verification rules may only be **strengthened** (more checks, stricter rules) or
 
 ### Development Velocity (3-Day Sprint)
 - **Commits**: 35+ production commits
-- **New Agents**: 3 (VRA, enhanced Visual Forge, Forge Conductor)
+- **New Agents**: 4 (VRA, DVNL, enhanced Visual Forge, Forge Conductor)
 - **Test Coverage**: 10/10 across all new implementations
-- **Documentation**: 12 comprehensive markdown files
+- **Documentation**: 13 comprehensive markdown files
 
 ---
 
@@ -499,8 +520,9 @@ forge/
 │   │   │   │   ├── product-strategist-hardened.ts
 │   │   │   │   ├── screen-cartographer-hardened.ts
 │   │   │   │   ├── journey-orchestrator-hardened.ts
-│   │   │   │   ├── visual-rendering-authority.ts  # NEW
-│   │   │   │   ├── visual-forge-hardened.ts       # UPGRADED
+│   │   │   │   ├── visual-rendering-authority.ts         # NEW
+│   │   │   │   ├── deterministic-visual-normalizer.ts    # NEW
+│   │   │   │   ├── visual-forge-hardened.ts              # UPGRADED
 │   │   │   │   ├── constraint-compiler.ts
 │   │   │   │   ├── build-prompt-engineer.ts
 │   │   │   │   ├── execution-planner.ts
@@ -523,13 +545,14 @@ forge/
 │   ├── AGENT-TAXONOMY.md          # 12-agent framework
 │   ├── INVARIANTS.md              # Phase 10 frozen rules
 │   ├── FORGE-CONDUCTOR-IMPLEMENTATION.md
-│   ├── VISUAL_RENDERING_AUTHORITY.md  # NEW
+│   ├── VISUAL_RENDERING_AUTHORITY.md
 │   ├── BUILD_PROMPT_EXECUTION_CONTRACT.md
 │   └── ...
 ├── packages/shared/               # Shared utilities
 ├── prisma/                        # Database schema & migrations
 ├── workspaces/                    # Generated apps output
 ├── VISUAL_RENDERING_AUTHORITY.md  # VRA specification
+├── DETERMINISTIC_VISUAL_NORMALIZER.md  # DVNL specification (NEW)
 ├── VISUAL_FORGE_HARDENED.md       # Visual Forge upgrades
 ├── package.json
 └── README.md
@@ -901,7 +924,8 @@ Comprehensive documentation in `/docs`:
 
 - [**AGENT-TAXONOMY.md**](docs/AGENT-TAXONOMY.md) - Complete 12-agent framework & tier system
 - [**INVARIANTS.md**](docs/INVARIANTS.md) - Phase 10 frozen guarantees
-- [**VISUAL_RENDERING_AUTHORITY.md**](VISUAL_RENDERING_AUTHORITY.md) - VRA specification (NEW)
+- [**VISUAL_RENDERING_AUTHORITY.md**](VISUAL_RENDERING_AUTHORITY.md) - VRA specification
+- [**DETERMINISTIC_VISUAL_NORMALIZER.md**](DETERMINISTIC_VISUAL_NORMALIZER.md) - DVNL specification (NEW) 🆕
 - [**VISUAL_FORGE_HARDENED.md**](VISUAL_FORGE_HARDENED.md) - Visual Forge upgrades (UPDATED)
 - [**FORGE-CONDUCTOR-IMPLEMENTATION.md**](docs/FORGE-CONDUCTOR-IMPLEMENTATION.md) - State machine orchestrator
 - [**BUILD_PROMPT_EXECUTION_CONTRACT.md**](docs/BUILD_PROMPT_EXECUTION_CONTRACT.md) - Build prompt engineering

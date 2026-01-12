@@ -14,20 +14,27 @@
  * ✅ 10. Full integration
  *
  * ARCHITECTURE NOTE (2026-01-12):
- * Visual Forge now works in coordination with Visual Rendering Authority (VRA, Tier 3.5).
- * - VRA: Expands Screen Definitions into explicit VisualExpansionContracts
- * - Visual Forge: Renders VisualExpansionContracts into pixel-perfect mockups
+ * Visual Forge now works in coordination with two upstream agents:
+ * - VRA (Visual Rendering Authority, Tier 3.5): Expands Screen Definitions into explicit VisualExpansionContracts
+ * - DVNL (Deterministic Visual Normalization Layer, Tier 3.5): Constrains visual complexity to prevent maximalism
+ * - Visual Forge: Renders approved contracts into pixel-perfect mockups
  *
  * INTEGRATION STATUS:
  * ✅ Phase 1 (Complete): Visual Forge uses deterministic prompts directly
  * ✅ Phase 2 (Complete): Visual Forge consumes approved VisualExpansionContracts from VRA
- * - Result: ChatGPT-level image quality with enterprise-grade auditability
+ * ✅ Phase 2.5 (Complete): Visual Forge consumes approved VisualNormalizationContracts from DVNL
+ * - Result: ChatGPT-level image quality + ChatGPT-level restraint with enterprise-grade auditability
  *
  * HOW IT WORKS:
- * 1. Visual Forge checks for approved VisualExpansionContract
- * 2. If found: Builds rich, hierarchical prompt from contract sections (metric_cards, charts, etc.)
- * 3. If not found: Falls back to legacy deterministic prompt
- * 4. Generates mockup via OpenAI GPT Image 1.5 (with DALL-E 3 fallback)
+ * 1. Visual Forge checks for approved VisualExpansionContract (VRA)
+ * 2. Visual Forge checks for approved VisualNormalizationContract (DVNL)
+ * 3. If both found: Builds rich, hierarchical prompt WITH explicit density constraints
+ *    - VRA provides WHAT to show (sections, elements, charts)
+ *    - DVNL provides HOW MUCH is allowed (maxMetricCards, disallowedVisuals, complexity caps)
+ *    - Result: Professional, balanced design (no radial gauges, speedometers, or visual clutter)
+ * 4. If only VRA found: Builds rich prompt WITHOUT constraints (may result in visual maximalism)
+ * 5. If neither found: Falls back to legacy deterministic prompt
+ * 6. Generates mockup via OpenAI GPT Image 1.5 (with DALL-E 3 fallback)
  *
  * SECURITY MODEL:
  * - Visual Forge is VISUAL_AUTHORITY
@@ -443,9 +450,14 @@ export class VisualForgeHardened {
    * Builds deterministic image generation prompt.
    * Same inputs → same prompt → same visual intent.
    *
-   * PHASE 2 (2026-01-12): Now integrates with Visual Rendering Authority (VRA).
+   * PHASE 2 (2026-01-12): Integrates with Visual Rendering Authority (VRA).
    * - If approved VisualExpansionContract exists → build rich, hierarchical prompt
    * - If no contract → fall back to legacy deterministic prompt
+   *
+   * PHASE 2.5 (2026-01-12): Integrates with Deterministic Visual Normalization Layer (DVNL).
+   * - If approved VisualNormalizationContract exists → inject visual complexity constraints
+   * - Prevents visual maximalism (radial gauges, speedometers, over-decoration)
+   * - Result: ChatGPT-level restraint with professional design discipline
    */
   private async buildDeterministicImagePrompt(
     screenName: string,
@@ -459,22 +471,34 @@ export class VisualForgeHardened {
       layoutType
     );
 
+    // Try to load approved VisualNormalizationContract (DVNL Phase 2.5 Integration)
+    const normalizationContract = await this.loadVisualNormalizationContract(
+      context.appRequestId,
+      screenName,
+      layoutType
+    );
+
     if (expansionContract) {
       // VRA contract exists - build rich, hierarchical prompt (ChatGPT-level detail)
       this.logger.info(
         {
           screenName,
           layoutType,
-          contractHash: expansionContract.contractHash,
+          vraContractHash: expansionContract.contractHash,
+          vncContractHash: normalizationContract?.contractHash || 'none',
+          dvnlEnabled: !!normalizationContract,
         },
-        'Building prompt from Visual Expansion Contract (VRA Phase 2)'
+        normalizationContract
+          ? 'Building prompt from VRA + DVNL contracts (full pipeline)'
+          : 'Building prompt from VRA contract only (DVNL not yet run)'
       );
 
       return this.buildPromptFromContract(
         screenName,
         layoutType,
         expansionContract.contractData,
-        context
+        context,
+        normalizationContract?.contractData // Pass VNC data if available
       );
     }
 
@@ -556,7 +580,8 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
     screenName: string,
     layoutType: LayoutTypeValue,
     contractData: any,
-    context: DesignContext
+    context: DesignContext,
+    vncData?: any // Optional Visual Normalization Contract data from DVNL
   ): string {
     const deviceSpec = layoutType === 'mobile' ? 'iPhone mobile app' : 'desktop web application';
 
@@ -595,6 +620,20 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
       }
     }
 
+    // Build VNC constraints if available (DVNL Phase 2.5)
+    let vncConstraintsSection = '';
+    if (vncData) {
+      const constraints = this.buildVNCConstraints(vncData);
+      vncConstraintsSection = `
+
+VISUAL NORMALIZATION CONSTRAINTS (MANDATORY - from DVNL):
+These constraints MUST be followed to ensure professional design discipline:
+
+${constraints}
+
+CRITICAL: These are explicit caps - do not exceed them. These constraints prevent visual maximalism and ensure ChatGPT-level restraint.`;
+    }
+
     // Assemble rich, hierarchical prompt
     const prompt = `Generate a high-fidelity, production-ready UI mockup for a ${deviceSpec}.
 
@@ -602,7 +641,7 @@ Screen Name: ${screenName}
 
 Layout Structure (from approved Visual Expansion Contract):
 
-${sections.join('\n\n')}
+${sections.join('\n\n')}${vncConstraintsSection}
 
 Design Requirements:
 - Modern, clean, professional SaaS design
@@ -614,7 +653,7 @@ Design Requirements:
 - Follow current design trends and best practices
 - Show realistic content (not Lorem Ipsum)
 - Include navigation elements appropriate for this screen
-- Respect the layout structure exactly
+- Respect the layout structure exactly${vncData ? '\n- STRICTLY follow the Visual Normalization Constraints above' : ''}
 
 Style: High-fidelity UI mockup, production-ready design, modern interface, professional quality`;
 
@@ -780,6 +819,94 @@ Display as clean, organized lists with:
       contractData: JSON.parse(contract.contractJson),
       contractHash: contract.contractHash,
     };
+  }
+
+  /**
+   * Load Visual Normalization Contract (VNC) from DVNL
+   * This provides visual complexity constraints that prevent maximalism.
+   *
+   * Phase 2.5 (DVNL Integration - 2026-01-12)
+   */
+  private async loadVisualNormalizationContract(
+    appRequestId: string,
+    screenName: string,
+    layoutType: LayoutTypeValue
+  ): Promise<{ contractData: any; contractHash: string } | null> {
+    const contract = await this.prisma.visualNormalizationContract.findFirst({
+      where: {
+        appRequestId,
+        screenName,
+        layoutType,
+        status: 'approved',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!contract) {
+      return null;
+    }
+
+    return {
+      contractData: JSON.parse(contract.contractJson),
+      contractHash: contract.contractHash,
+    };
+  }
+
+  /**
+   * Build VNC constraints string for image prompt injection
+   * Converts Visual Normalization Contract into explicit constraints
+   * that the image model must follow.
+   */
+  private buildVNCConstraints(vncData: any): string {
+    const constraints: string[] = [];
+
+    // Layout constraints
+    if (vncData.layoutRules) {
+      constraints.push(`- Use ${vncData.layoutRules.gridSystem} grid system`);
+      constraints.push(`- Maximum ${vncData.layoutRules.maxCardsPerRow} cards per row`);
+      constraints.push(`- Maximum ${vncData.layoutRules.maxSectionsPerRow} section(s) per row`);
+    }
+
+    // Density constraints (CRITICAL - prevents visual maximalism)
+    if (vncData.densityRules) {
+      constraints.push(`- Maximum ${vncData.densityRules.maxMetricCards} metric cards total`);
+      constraints.push(`- Maximum ${vncData.densityRules.maxCharts} charts/graphs total`);
+      constraints.push(`- Maximum ${vncData.densityRules.maxLists} lists total`);
+    }
+
+    // Chart type constraints
+    if (vncData.allowedChartTypes && vncData.allowedChartTypes.length > 0) {
+      constraints.push(`- Allowed chart types: ${vncData.allowedChartTypes.join(', ')}`);
+    }
+
+    // Disallowed visuals (CRITICAL - prevents gauges, speedometers, etc.)
+    if (vncData.disallowedVisuals && vncData.disallowedVisuals.length > 0) {
+      const disallowed = vncData.disallowedVisuals
+        .map((v: string) => v.replace(/_/g, ' '))
+        .join(', ');
+      constraints.push(`- FORBIDDEN: ${disallowed}`);
+    }
+
+    // Typography constraints
+    if (vncData.typographyRules) {
+      constraints.push(`- Typography: ${vncData.typographyRules.headingScale} headings, ${vncData.typographyRules.metricScale} metrics, ${vncData.typographyRules.labelScale} labels`);
+      constraints.push(`- Maximum ${vncData.typographyRules.maxFontVariants} font variants`);
+    }
+
+    // Color constraints
+    if (vncData.colorRules) {
+      constraints.push(`- Color scheme: ${vncData.colorRules.backgroundStyle} background`);
+      constraints.push(`- ${vncData.colorRules.primaryAccentCount} primary accent color(s), ${vncData.colorRules.secondaryAccentCount} secondary accent color(s)`);
+    }
+
+    // Overall complexity cap
+    if (vncData.visualComplexityCap) {
+      constraints.push(`- Visual complexity level: ${vncData.visualComplexityCap}`);
+    }
+
+    return constraints.join('\n');
   }
 
   /**
