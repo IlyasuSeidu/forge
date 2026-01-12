@@ -1159,11 +1159,12 @@ export class ScreenCartographerHardened {
       };
     }
 
-    // Use Product Strategist to get planning docs with hashes
-    const masterPlan = await this.productStrategist.getApprovedDocument(appRequestId, 'MASTER_PLAN');
-    const implPlan = await this.productStrategist.getApprovedDocument(appRequestId, 'IMPLEMENTATION_PLAN');
+    // Get planning docs directly from database
+    const docs = await this.productStrategist.getAllDocuments(appRequestId);
+    const masterPlan = docs.find(d => d.type === 'MASTER_PLAN');
+    const implPlan = docs.find(d => d.type === 'IMPLEMENTATION_PLAN');
 
-    if (!masterPlan || !implPlan) {
+    if (!masterPlan || !implPlan || masterPlan.status !== 'approved' || implPlan.status !== 'approved') {
       throw new Error('Planning documents not found or not approved');
     }
 

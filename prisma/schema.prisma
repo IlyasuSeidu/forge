@@ -283,10 +283,22 @@ model UserRoleDefinition {
   status       String // "draft" | "awaiting_approval" | "approved"
   createdAt    DateTime   @default(now())
   approvedAt   DateTime?
+
+  // Immutability & Versioning (Production Hardening)
+  roleTableVersion  Int      @default(1)
+  roleTableHash     String?  // SHA-256 hash of approved role table
+  approvedBy        String?  // "human"
+  basePromptHash    String   @default("") // Reference to Base Prompt
+  planningDocsHash  String   @default("") // SHA-256 of Master + Implementation Plans
+  screenIndexHash   String   @default("") // Reference to approved Screen Index
+
   appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([status])
+  @@index([roleTableHash])
+  @@index([basePromptHash])
+  @@index([screenIndexHash])
 }
 
 model UserJourney {
@@ -298,11 +310,24 @@ model UserJourney {
   status       String // "draft" | "awaiting_approval" | "approved"
   createdAt    DateTime   @default(now())
   approvedAt   DateTime?
+
+  // Immutability & Versioning (Production Hardening)
+  journeyVersion    Int      @default(1)
+  journeyHash       String?  // SHA-256 hash of approved journey
+  approvedBy        String?  // "human"
+  roleTableHash     String   @default("") // Reference to approved Role Table
+  screenIndexHash   String   @default("") // Reference to approved Screen Index
+  basePromptHash    String   @default("") // Reference to Base Prompt
+  planningDocsHash  String   @default("") // SHA-256 of planning docs
+
   appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
   @@index([order])
   @@index([status])
+  @@index([journeyHash])
+  @@index([roleTableHash])
+  @@index([screenIndexHash])
 }
 
 model ScreenMockup {
