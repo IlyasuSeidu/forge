@@ -633,7 +633,7 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
         context
       );
 
-      // Generate mockup image via OpenAI DALL-E
+      // Generate mockup image via OpenAI GPT Image 1.5
       const mockupId = randomUUID();
       const filename = `${canonicalScreenName.toLowerCase().replace(/\s+/g, '-')}-${layoutType}.png`;
       const imagePath = path.join(this.mockupsDir, filename);
@@ -641,7 +641,7 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
       // Ensure mockups directory exists
       await fs.mkdir(this.mockupsDir, { recursive: true });
 
-      // Generate mockup image (uses OpenAI DALL-E 3 if API key configured, otherwise placeholder)
+      // Generate mockup image (uses OpenAI GPT Image 1.5 if API key configured, otherwise placeholder)
       await this.generateMockupImage(imagePath, canonicalScreenName, layoutType, imagePrompt);
 
       // Compute image hash
@@ -971,10 +971,12 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
   }
 
   /**
-   * HELPER: Generate mockup image via OpenAI DALL-E
+   * HELPER: Generate mockup image via OpenAI with smart fallback
    *
-   * Generates high-fidelity UI mockup using OpenAI DALL-E 3 API.
-   * Falls back to placeholder if API key not configured.
+   * Generates high-fidelity UI mockup using OpenAI image generation API.
+   * - Tries GPT Image 1.5 first (4× faster, better quality)
+   * - Falls back to DALL-E 3 if organization not verified
+   * - Falls back to placeholder if API key not configured
    */
   private async generateMockupImage(
     imagePath: string,
@@ -989,15 +991,19 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
       this.logger.warn('OpenAI API key not configured - using fallback mode');
 
       // Fallback: Create placeholder image
-      const placeholder = `MOCKUP: ${screenName} (${layoutType})\n\nThis is a placeholder image.\nIn production, this would be a high-fidelity UI mockup generated via DALL-E.`;
+      const placeholder = `MOCKUP: ${screenName} (${layoutType})\n\nThis is a placeholder image.\nIn production, this would be a high-fidelity UI mockup generated via GPT Image 1.5.`;
       await fs.writeFile(imagePath, placeholder);
       this.logger.debug({ imagePath, screenName, layoutType }, 'Placeholder image created');
       return;
     }
 
-    // Real mode: Call OpenAI DALL-E 3 API
+    // Real mode: Call OpenAI API with smart fallback
+    // Try GPT Image 1.5 first (best quality, 4× faster), fallback to DALL-E 3 if not accessible
+    let imageBuffer: Buffer;
+    let modelUsed = 'gpt-image-1.5';
+
     try {
-      this.logger.info({ screenName, layoutType }, 'Generating mockup via OpenAI DALL-E 3');
+      this.logger.info({ screenName, layoutType }, 'Attempting GPT Image 1.5 generation');
 
       const response = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
@@ -1006,33 +1012,85 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'dall-e-3',
+          model: 'gpt-image-1.5',
           prompt: imagePrompt,
           n: 1,
-          size: '1792x1024', // Wide format for desktop/mobile
-          quality: 'hd',
+          size: '1536x1024', // GPT Image 1.5 supports: '1024x1024', '1024x1536', '1536x1024', 'auto'
+          quality: 'high', // GPT Image 1.5 supports: 'low', 'medium', 'high', 'auto'
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `OpenAI API error: ${response.statusText}. ${JSON.stringify(errorData)}`
-        );
+
+        // Check if this is a verification/access error - fallback to DALL-E 3
+        if (
+          response.status === 403 ||
+          (errorData as any)?.error?.message?.includes('verified') ||
+          (errorData as any)?.error?.message?.includes('gpt-image-1.5')
+        ) {
+          this.logger.warn(
+            { errorData },
+            'GPT Image 1.5 requires verified organization - falling back to DALL-E 3'
+          );
+
+          // Fallback to DALL-E 3
+          modelUsed = 'dall-e-3';
+          const dalleResponse = await fetch('https://api.openai.com/v1/images/generations', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: 'dall-e-3',
+              prompt: imagePrompt,
+              n: 1,
+              size: '1792x1024', // DALL-E 3 supports: '1024x1024', '1792x1024', '1024x1792'
+              quality: 'hd',
+            }),
+          });
+
+          if (!dalleResponse.ok) {
+            const dalleErrorData = await dalleResponse.json().catch(() => ({}));
+            throw new Error(
+              `OpenAI DALL-E 3 fallback failed: ${dalleResponse.statusText}. ${JSON.stringify(dalleErrorData)}`
+            );
+          }
+
+          const dalleData = await dalleResponse.json();
+          const dalleImageUrl = dalleData.data[0].url;
+
+          this.logger.info({ imageUrl: dalleImageUrl, screenName }, 'DALL-E 3 image generated');
+
+          // Download DALL-E image
+          const dalleImageResponse = await fetch(dalleImageUrl);
+          if (!dalleImageResponse.ok) {
+            throw new Error(`Failed to download DALL-E image: ${dalleImageResponse.statusText}`);
+          }
+
+          imageBuffer = Buffer.from(await dalleImageResponse.arrayBuffer());
+        } else {
+          // Other API error - don't fallback
+          throw new Error(
+            `OpenAI API error: ${response.statusText}. ${JSON.stringify(errorData)}`
+          );
+        }
+      } else {
+        // GPT Image 1.5 success
+        const data = await response.json();
+        const imageUrl = data.data[0].url;
+
+        this.logger.info({ imageUrl, screenName }, 'GPT Image 1.5 generated');
+
+        // Download image
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to download image: ${imageResponse.statusText}`);
+        }
+
+        imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
       }
-
-      const data = await response.json();
-      const imageUrl = data.data[0].url;
-
-      this.logger.info({ imageUrl, screenName }, 'DALL-E image generated - downloading');
-
-      // Download image
-      const imageResponse = await fetch(imageUrl);
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to download image: ${imageResponse.statusText}`);
-      }
-
-      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
 
       // Save image
       await fs.mkdir(this.mockupsDir, { recursive: true });
@@ -1043,14 +1101,15 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
           imagePath,
           screenName,
           layoutType,
+          modelUsed,
           sizeBytes: imageBuffer.length,
         },
-        'Mockup image downloaded and saved from DALL-E'
+        `Mockup image generated and saved (model: ${modelUsed})`
       );
     } catch (error) {
       this.logger.error({ error, screenName, layoutType }, 'Failed to generate mockup via OpenAI');
       throw new Error(
-        `Failed to generate mockup via OpenAI DALL-E: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to generate mockup via OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
   }

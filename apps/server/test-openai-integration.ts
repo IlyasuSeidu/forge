@@ -1,5 +1,5 @@
 /**
- * Quick test to verify OpenAI DALL-E integration
+ * Quick test to verify OpenAI GPT Image 1.5 integration
  */
 
 import { config } from 'dotenv';
@@ -17,7 +17,7 @@ const logger = pino({ level: 'info' });
 
 async function testOpenAIIntegration() {
   console.log('='.repeat(80));
-  console.log('TESTING OPENAI DALL-E INTEGRATION');
+  console.log('TESTING OPENAI GPT IMAGE 1.5 INTEGRATION');
   console.log('='.repeat(80));
   console.log();
 
@@ -42,7 +42,7 @@ async function testOpenAIIntegration() {
       data: {
         id: projectId,
         name: 'OpenAI Test Project',
-        description: 'Testing OpenAI DALL-E integration',
+        description: 'Testing OpenAI GPT Image 1.5 integration',
       },
     });
 
@@ -147,8 +147,8 @@ Main dashboard with analytics and key metrics.
     const conductor = new ForgeConductor(prisma, logger);
     const visualForge = new VisualForgeHardened(prisma, conductor, logger);
 
-    console.log('Generating mockup via OpenAI DALL-E 3...');
-    console.log('This may take 10-20 seconds...');
+    console.log('Generating mockup via OpenAI GPT Image 1.5...');
+    console.log('This may take 5-10 seconds (4× faster than DALL-E 3)...');
     console.log();
 
     const startTime = Date.now();
@@ -185,7 +185,7 @@ Main dashboard with analytics and key metrics.
     }
 
     console.log();
-    console.log('🎉 OpenAI DALL-E integration working correctly!');
+    console.log('🎉 OpenAI GPT Image 1.5 integration working correctly!');
     console.log();
 
     // Cleanup
