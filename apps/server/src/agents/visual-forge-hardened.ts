@@ -13,6 +13,16 @@
  * ✅ 9. Failure & escalation
  * ✅ 10. Full integration
  *
+ * ARCHITECTURE NOTE (2026-01-12):
+ * Visual Forge now works in coordination with Visual Rendering Authority (VRA, Tier 3.5).
+ * - VRA: Expands Screen Definitions into explicit VisualExpansionContracts
+ * - Visual Forge: Renders VisualExpansionContracts into pixel-perfect mockups
+ *
+ * INTEGRATION ROADMAP:
+ * - Phase 1 (Current): Visual Forge uses deterministic prompts directly
+ * - Phase 2 (Next): Visual Forge consumes approved VisualExpansionContracts from VRA
+ * - Result: ChatGPT-level image quality with enterprise-grade auditability
+ *
  * SECURITY MODEL:
  * - Visual Forge is VISUAL_AUTHORITY
  * - Its output (mockup images) is treated as law by downstream agents

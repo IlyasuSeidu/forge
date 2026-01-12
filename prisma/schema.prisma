@@ -126,6 +126,7 @@ model AppRequest {
   userRoleDefinition UserRoleDefinition?
   userJourneys       UserJourney[]
   screenMockups      ScreenMockup[]
+  visualExpansionContracts VisualExpansionContract[]
   projectRuleSet     ProjectRuleSet?
   buildPrompts       BuildPrompt[]
   executionPlans     ExecutionPlan[]
@@ -357,6 +358,39 @@ model ScreenMockup {
   @@index([status])
   @@index([mockupHash])
   @@index([screenHash])
+}
+
+model VisualExpansionContract {
+  id                     String    @id
+  appRequestId           String
+  screenName             String
+  layoutType             String    // "desktop" | "mobile"
+  contractJson           String    // JSON: sections, elements, charts, etc.
+
+  // Immutability & Hash Chain
+  contractHash           String
+  contractVersion        Int       @default(1)
+  approvedBy             String?   // "human" | null
+  approvedAt             DateTime?
+
+  // Traceability
+  basePromptHash         String
+  planningDocsHash       String
+  screenIndexHash        String
+  screenDefinitionHash   String
+  journeyHash            String    @default("") // Optional: relevant journey hash
+
+  // Status
+  status                 String    // "draft" | "awaiting_approval" | "approved" | "rejected"
+  createdAt              DateTime  @default(now())
+
+  appRequest             AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([contractHash])
+  @@index([screenName])
+  @@index([status])
+  @@index([screenDefinitionHash])
 }
 
 model ProjectRuleSet {
