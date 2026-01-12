@@ -633,7 +633,7 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
         context
       );
 
-      // Generate image (placeholder mode for now)
+      // Generate mockup image via OpenAI DALL-E
       const mockupId = randomUUID();
       const filename = `${canonicalScreenName.toLowerCase().replace(/\s+/g, '-')}-${layoutType}.png`;
       const imagePath = path.join(this.mockupsDir, filename);
@@ -641,8 +641,8 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
       // Ensure mockups directory exists
       await fs.mkdir(this.mockupsDir, { recursive: true });
 
-      // Generate placeholder image (in production, call DALL-E API)
-      await this.generatePlaceholderImage(imagePath, canonicalScreenName, layoutType);
+      // Generate mockup image (uses OpenAI DALL-E 3 if API key configured, otherwise placeholder)
+      await this.generateMockupImage(imagePath, canonicalScreenName, layoutType, imagePrompt);
 
       // Compute image hash
       const imageHash = await this.computeImageHash(imagePath);
@@ -971,18 +971,88 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
   }
 
   /**
-   * HELPER: Generate placeholder image (fallback)
+   * HELPER: Generate mockup image via OpenAI DALL-E
+   *
+   * Generates high-fidelity UI mockup using OpenAI DALL-E 3 API.
+   * Falls back to placeholder if API key not configured.
    */
-  private async generatePlaceholderImage(
+  private async generateMockupImage(
     imagePath: string,
     screenName: string,
-    layoutType: LayoutTypeValue
+    layoutType: LayoutTypeValue,
+    imagePrompt: string
   ): Promise<void> {
-    // In production, call OpenAI DALL-E API
-    // For now, create a simple placeholder
-    const placeholder = `MOCKUP: ${screenName} (${layoutType})\n\nThis is a placeholder image.\nIn production, this would be a high-fidelity UI mockup generated via DALL-E.`;
-    await fs.writeFile(imagePath, placeholder);
-    this.logger.debug({ imagePath, screenName, layoutType }, 'Placeholder image created');
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    // Check if OpenAI API is configured
+    if (!apiKey) {
+      this.logger.warn('OpenAI API key not configured - using fallback mode');
+
+      // Fallback: Create placeholder image
+      const placeholder = `MOCKUP: ${screenName} (${layoutType})\n\nThis is a placeholder image.\nIn production, this would be a high-fidelity UI mockup generated via DALL-E.`;
+      await fs.writeFile(imagePath, placeholder);
+      this.logger.debug({ imagePath, screenName, layoutType }, 'Placeholder image created');
+      return;
+    }
+
+    // Real mode: Call OpenAI DALL-E 3 API
+    try {
+      this.logger.info({ screenName, layoutType }, 'Generating mockup via OpenAI DALL-E 3');
+
+      const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'dall-e-3',
+          prompt: imagePrompt,
+          n: 1,
+          size: '1792x1024', // Wide format for desktop/mobile
+          quality: 'hd',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `OpenAI API error: ${response.statusText}. ${JSON.stringify(errorData)}`
+        );
+      }
+
+      const data = await response.json();
+      const imageUrl = data.data[0].url;
+
+      this.logger.info({ imageUrl, screenName }, 'DALL-E image generated - downloading');
+
+      // Download image
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to download image: ${imageResponse.statusText}`);
+      }
+
+      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+      // Save image
+      await fs.mkdir(this.mockupsDir, { recursive: true });
+      await fs.writeFile(imagePath, imageBuffer);
+
+      this.logger.info(
+        {
+          imagePath,
+          screenName,
+          layoutType,
+          sizeBytes: imageBuffer.length,
+        },
+        'Mockup image downloaded and saved from DALL-E'
+      );
+    } catch (error) {
+      this.logger.error({ error, screenName, layoutType }, 'Failed to generate mockup via OpenAI');
+      throw new Error(
+        `Failed to generate mockup via OpenAI DALL-E: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 
   /**

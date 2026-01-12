@@ -21,6 +21,10 @@ import { VisualForgeHardened } from './src/agents/visual-forge-hardened.js';
 import pino from 'pino';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { config } from 'dotenv';
+
+// Load environment variables from .env file
+config();
 
 const prisma = new PrismaClient();
 const logger = pino({ level: 'info' });
