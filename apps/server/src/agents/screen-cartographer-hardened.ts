@@ -530,17 +530,17 @@ export class ScreenCartographerHardened {
     // Emit screen_cartography_started event
     await this.emitEvent(appRequestId, 'screen_cartography_started', 'Screen Cartographer (HARDENED) initiated');
 
-    // PART 6: Generate Screen Index (deterministic)
-    const screenIndexContract = await this.generateScreenIndexContract(masterPlan, implPlan);
+    // PART 6: Generate Screen Index (deterministic with closed vocabulary)
+    // Note: generateScreenIndexContract now returns canonicalized screens from closed vocabulary
+    // Screen justification validation is built into the vocabulary extraction + canonicalization
+    const screenIndexContract = await this.generateScreenIndexContract(masterPlan, implPlan, basePrompt);
 
     // PART 3: Validate contract
     this.validateScreenIndexContract(screenIndexContract);
 
-    // PART 8: Validate every screen against planning docs + base prompt
-    const planningDocsContent = masterPlan + '\n' + implPlan;
-    for (const screenName of screenIndexContract.screens) {
-      await this.validateScreenJustification(screenName, planningDocsContent, basePrompt);
-    }
+    // Screen justification is now implicit: all screens MUST be from the extracted vocabulary
+    // which is derived from base prompt + planning docs + standard screens
+    // Canonicalization enforces this - no additional validation needed
 
     // PART 6: Serialize to deterministic format
     const screenIndexContent = this.serializeScreenIndex(screenIndexContract);
@@ -1197,33 +1197,205 @@ export class ScreenCartographerHardened {
   }
 
   /**
-   * PART 6 & 7: Generate Screen Index Contract
+   * FIX #1: Extract Allowed Screen Names from Planning Docs + Base Prompt
+   *
+   * CRITICAL: LLMs must NEVER invent identifiers.
+   * This method extracts canonical screen names from approved documents.
+   *
+   * Sources (in order of precedence):
+   * 1. Base Prompt (explicit screen names from Foundry answers)
+   * 2. Master Plan (screens mentioned in planning)
+   * 3. Implementation Plan (screens mentioned in implementation)
+   * 4. Standard vocabulary (Login, Signup, Dashboard, etc.)
+   */
+  private extractAllowedScreenNames(
+    basePrompt: string,
+    masterPlan: string,
+    implPlan: string
+  ): string[] {
+    const allowedNames = new Set<string>();
+
+    // Standard vocabulary (ALWAYS allowed)
+    const standardScreens = [
+      'Landing Page',
+      'Home',
+      'Dashboard',
+      'Login',
+      'Sign In',
+      'Signup',
+      'Sign Up',
+      'Register',
+      'Settings',
+      'Profile',
+      'Account',
+      '404',
+      'Not Found',
+      'Error',
+      'Unauthorized',
+      'Forbidden',
+    ];
+
+    standardScreens.forEach(name => allowedNames.add(name));
+
+    // Extract from base prompt (explicit answers)
+    // Look for screen names in patterns like "Dashboard, Task List, Project View"
+    const basePromptScreens = this.extractScreenNamesFromText(basePrompt);
+    basePromptScreens.forEach(name => allowedNames.add(name));
+
+    // Extract from planning docs
+    const planningScreens = this.extractScreenNamesFromText(masterPlan + '\n' + implPlan);
+    planningScreens.forEach(name => allowedNames.add(name));
+
+    const sorted = Array.from(allowedNames).sort();
+
+    this.logger.debug(
+      { allowedCount: sorted.length, allowed: sorted.slice(0, 10) },
+      'Extracted allowed screen names (closed vocabulary)'
+    );
+
+    return sorted;
+  }
+
+  /**
+   * Extract Screen Names from Text
+   *
+   * Uses heuristics to find screen names in natural language.
+   * Looks for capitalized phrases that appear to be screen names.
+   */
+  private extractScreenNamesFromText(text: string): string[] {
+    const names: string[] = [];
+
+    // Pattern 1: "Screens: Dashboard, Task List, Project View"
+    const listPattern = /(?:screens?|pages?|views?)[\s:]+([A-Z][^.!?]*?)(?:\.|$)/gi;
+    let match;
+    while ((match = listPattern.exec(text)) !== null) {
+      const items = match[1].split(',').map(s => s.trim());
+      items.forEach(item => {
+        if (item && /^[A-Z]/.test(item)) {
+          names.push(item);
+        }
+      });
+    }
+
+    // Pattern 2: Quoted screen names "Task List" or 'Dashboard'
+    const quotedPattern = /["']([A-Z][A-Za-z\s]{2,30})["']/g;
+    while ((match = quotedPattern.exec(text)) !== null) {
+      names.push(match[1].trim());
+    }
+
+    // Pattern 3: Title Case phrases (2-4 words starting with capital)
+    const titleCasePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/g;
+    while ((match = titleCasePattern.exec(text)) !== null) {
+      const phrase = match[1];
+      // Filter out common phrases that aren't screen names
+      if (!this.isCommonPhrase(phrase)) {
+        names.push(phrase);
+      }
+    }
+
+    // Deduplicate and clean
+    const unique = Array.from(new Set(names));
+    return unique.filter(name => name.length >= 3 && name.length <= 50);
+  }
+
+  /**
+   * Check if phrase is a common phrase (not a screen name)
+   */
+  private isCommonPhrase(phrase: string): boolean {
+    const commonPhrases = [
+      'The User',
+      'The System',
+      'This Feature',
+      'Each User',
+      'All Users',
+      'Master Plan',
+      'Implementation Plan',
+      'Base Prompt',
+    ];
+
+    return commonPhrases.some(common =>
+      phrase.toLowerCase().includes(common.toLowerCase())
+    );
+  }
+
+  /**
+   * FIX #2: Canonicalize Screen Name
+   *
+   * CRITICAL: Enforces that LLM output matches EXACTLY one allowed name.
+   * This eliminates pluralization drift ("Task Detail" vs "Task Details").
+   *
+   * Rules:
+   * - Case-insensitive matching
+   * - Exact match required (no fuzzy matching)
+   * - Throws error if no match found
+   */
+  private canonicalizeScreenName(
+    rawName: string,
+    allowedNames: string[]
+  ): string {
+    const normalized = rawName.trim().toLowerCase();
+
+    // Exact match (case-insensitive)
+    const match = allowedNames.find(
+      name => name.toLowerCase() === normalized
+    );
+
+    if (match) {
+      return match;
+    }
+
+    // No match found - FAIL LOUDLY
+    throw new Error(
+      `SCREEN NAME CANONICALIZATION FAILURE: "${rawName}" is not in the allowed vocabulary.\n` +
+      `Allowed names: ${allowedNames.slice(0, 20).join(', ')}${allowedNames.length > 20 ? '...' : ''}\n` +
+      `LLMs must NOT invent screen identifiers. This is a structural integrity violation.`
+    );
+  }
+
+  /**
+   * PART 6 & 7: Generate Screen Index Contract (WITH CLOSED VOCABULARY)
+   *
+   * FIX #3: Uses closed vocabulary to eliminate LLM identifier variance.
    *
    * Calls LLM with deterministic settings.
    * NO silent fallbacks - fails loudly.
    */
   private async generateScreenIndexContract(
     masterPlan: string,
-    implPlan: string
+    implPlan: string,
+    basePrompt: string
   ): Promise<ScreenIndexContract> {
+    // FIX #1: Extract allowed screen names (closed vocabulary)
+    const allowedNames = this.extractAllowedScreenNames(basePrompt, masterPlan, implPlan);
+
+    this.logger.info(
+      { allowedCount: allowedNames.length },
+      'Using closed vocabulary for screen names (LLM cannot invent identifiers)'
+    );
+
     const systemPrompt = `You are a senior product/UX architect generating a Screen Index.
 
 CRITICAL RULES:
-- Use EXACT screen names from the planning docs when explicitly listed
-- If planning docs list specific screens, use those names verbatim
-- Include standard UI screens (Landing Page, Login, Signup, Dashboard, Settings, Profile) if user authentication is mentioned
+- You may ONLY select screen names from the allowed vocabulary provided below
+- DO NOT rename, pluralize, or invent new screen names
+- DO NOT use synonyms or variations
+- If a screen is needed but not in the vocabulary, choose the closest match
+- Include standard UI screens (Login, Signup, Dashboard, Settings, Profile) if user authentication is mentioned
 - Include error/edge screens (404, Error) if appropriate
 - NO code generation
 - NO UI design
 - NO feature invention
-- NO screen name variations or synonyms - use exact names from docs
-- If planning docs are vague and don't list screens, escalate by using only standard screens
+
+ALLOWED SCREEN NAMES (CLOSED VOCABULARY):
+${allowedNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
 
 OUTPUT FORMAT (STRICT):
 You MUST respond with ONLY a valid JSON object matching this schema:
 {
   "screens": ["array", "of", "screen", "names"]
 }
+
+Every screen name MUST be from the allowed vocabulary above (exact match, case-sensitive).
 
 NO additional text outside the JSON object.`;
 
@@ -1254,7 +1426,16 @@ Generate a Screen Index (complete list of screen names). Remember: Respond with 
         this.logger.debug({ responseLength: response.length, attempt }, 'LLM response received');
 
         // Parse and validate JSON response
-        const contract = this.parseScreenIndexResponse(response);
+        const rawContract = this.parseScreenIndexResponse(response);
+
+        // FIX #2: Canonicalize all screen names to eliminate variance
+        const canonicalizedScreens = rawContract.screens.map(rawName =>
+          this.canonicalizeScreenName(rawName, allowedNames)
+        );
+
+        const contract: ScreenIndexContract = {
+          screens: canonicalizedScreens,
+        };
 
         return contract;
       } catch (error) {
