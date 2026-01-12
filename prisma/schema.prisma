@@ -128,6 +128,8 @@ model AppRequest {
   screenMockups      ScreenMockup[]
   visualExpansionContracts VisualExpansionContract[]
   visualNormalizationContracts VisualNormalizationContract[]
+  visualCompositionContracts VisualCompositionContract[]
+  visualCodeRenderingContracts VisualCodeRenderingContract[]
   projectRuleSet     ProjectRuleSet?
   buildPrompts       BuildPrompt[]
   executionPlans     ExecutionPlan[]
@@ -425,6 +427,90 @@ model VisualNormalizationContract {
   @@index([screenName])
   @@index([status])
   @@index([visualExpansionContractHash])
+}
+
+model VisualCompositionContract {
+  id                              String    @id
+  appRequestId                    String
+  screenName                      String
+  layoutType                      String    // "desktop" | "mobile"
+  contractJson                    String    // JSON: composition plan (sections, grouping, priority, spacing, etc.)
+
+  // Immutability & Hash Chain
+  contractHash                    String
+  contractVersion                 Int       @default(1)
+  approvedBy                      String?   // "human" | null
+  approvedAt                      DateTime?
+
+  // Traceability (hash chain from upstream artifacts)
+  basePromptHash                  String
+  planningDocsHash                String
+  screenIndexHash                 String
+  screenDefinitionHash            String
+  visualExpansionContractHash     String    // VRA contract this composes
+  visualNormalizationContractHash String    // DVNL contract this respects
+
+  // Status
+  status                          String    // "draft" | "awaiting_approval" | "approved" | "rejected"
+  createdAt                       DateTime  @default(now())
+
+  appRequest                      AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([contractHash])
+  @@index([screenName])
+  @@index([status])
+  @@index([visualNormalizationContractHash])
+}
+
+// Visual Code Rendering Authority (VCRA) - Tier 3.75
+// Generates real HTML/CSS/React code from visual contracts
+// Replaces DALL-E with browser-rendered screenshots
+model VisualCodeRenderingContract {
+  id                              String    @id
+  appRequestId                    String
+  screenName                      String
+  layoutType                      String    // "desktop" | "mobile"
+
+  // Framework & Code Generation
+  framework                       String    // "html-tailwind" | "react-tailwind"
+  generatedCode                   String    // Full HTML/JSX code
+  codeHash                        String    // Hash of generated code
+
+  // Viewport Configuration
+  viewportWidth                   Int
+  viewportHeight                  Int
+
+  // Contract Data (JSON)
+  contractJson                    String    // Layout structure, typography, spacing rules
+
+  // Immutability & Hash Chain
+  contractHash                    String
+  contractVersion                 Int       @default(1)
+  approvedBy                      String?
+  approvedAt                      DateTime?
+
+  // Traceability (complete hash chain from VRA → DVNL → VCA → VCRA)
+  basePromptHash                  String
+  planningDocsHash                String
+  screenIndexHash                 String
+  screenDefinitionHash            String
+  visualExpansionContractHash     String    // VRA contract
+  visualNormalizationContractHash String    // DVNL contract
+  visualCompositionContractHash   String    // VCA contract
+
+  // Status
+  status                          String    // "draft" | "awaiting_approval" | "approved" | "rejected"
+  createdAt                       DateTime  @default(now())
+
+  appRequest                      AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([contractHash])
+  @@index([codeHash])
+  @@index([screenName])
+  @@index([status])
+  @@index([visualCompositionContractHash])
 }
 
 model ProjectRuleSet {

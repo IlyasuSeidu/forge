@@ -379,8 +379,7 @@ export class DeterministicVisualNormalizer {
     const screenDefinition = await this.prisma.screenDefinition.findFirst({
       where: {
         appRequestId,
-        canonicalName: screenName,
-        layoutType,
+        screenName: screenName,
       },
     });
 
@@ -417,9 +416,9 @@ export class DeterministicVisualNormalizer {
       planningDocsHash,
       screenIndexHash: screenIndex.screenIndexHash,
       screenDefinition: {
-        screenName: screenDefinition.canonicalName,
+        screenName: screenDefinition.screenName,
         content: screenDefinition.content,
-        screenHash: screenDefinition.screenDefinitionHash,
+        screenHash: screenDefinition.screenHash,
       },
       visualExpansionContract: {
         contractData,
@@ -438,7 +437,7 @@ export class DeterministicVisualNormalizer {
     const prompt = this.buildDeterministicPrompt(context, screenName, layoutType);
 
     const response = await this.anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4096,
       temperature: 0.2, // Low temperature for determinism
       messages: [
@@ -495,7 +494,17 @@ ${VISUAL_NORMALIZATION_ENVELOPE.forbiddenActions.map((a) => `- ${a}`).join('\n')
 
 # YOUR TASK
 
-Generate a Visual Normalization Contract that constrains the visual complexity of the following approved Visual Expansion Contract.
+Generate a Visual Normalization Contract that constrains the visual complexity of the
+following approved Visual Expansion Contract FOR HIGH-FIDELITY, PRODUCTION-READY UI MOCKUP GENERATION.
+
+## CONTEXT: WHY THIS MATTERS
+
+Your constraints feed directly into DALL-E/GPT Image generation for professional-quality mockups.
+Your density caps determine whether the final mockup looks:
+- ✅ PROFESSIONAL: Clean, focused, ChatGPT-level restraint
+- ❌ AMATEUR: Busy, cluttered, overwhelming
+
+Production-ready mockups require STRICT density discipline to appear professional.
 
 ## INPUTS (HASH-LOCKED, APPROVED)
 
@@ -525,10 +534,23 @@ Based on the VRA contract above:
 - Count metric_cards sections → enforce maxMetricCards (limit: 6)
 - Count charts → enforce maxCharts (limit: 3 for desktop, 2 for mobile)
 - Count lists → enforce maxLists (limit: 2)
-- Disallow: radial_gauges, speedometers, excessive_badges, ornamental_icons
 - Layout: prefer 12-column grid for SaaS dashboards
 - Typography: limit to 3 font variants
 - Color: limit to 1 primary accent, 1 secondary accent
+
+## DISALLOWED VISUALS (CLOSED VOCABULARY)
+
+"disallowedVisuals" must ONLY include decorative elements from this exact list:
+- radial_gauges
+- speedometers
+- excessive_badges
+- ornamental_icons
+- decorative_meters
+- animated_effects
+
+CRITICAL: Do NOT disallow entire section types (e.g., "charts", "lists", "metric_cards").
+Use densityRules caps to limit counts, not disallowedVisuals.
+disallowedVisuals is ONLY for banning specific decorative visual styles.
 
 ## OUTPUT FORMAT (REQUIRED)
 

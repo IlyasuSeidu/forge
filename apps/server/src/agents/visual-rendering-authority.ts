@@ -552,7 +552,16 @@ export class VisualRenderingAuthority {
 
 YOUR SOLE PURPOSE:
 Convert an approved Screen Definition into an explicit VisualExpansionContract
-so that image generation can render pixels instead of guessing structure.
+for HIGH-FIDELITY, PRODUCTION-READY UI MOCKUP GENERATION. Your output directly
+feeds into DALL-E/GPT Image generation to create professional-quality mockups
+that look like real SaaS applications, not wireframes or prototypes.
+
+QUALITY STANDARDS FOR MOCKUP GENERATION:
+- Your expansion feeds into production-ready, high-fidelity mockup rendering
+- Example data should be realistic and professional (e.g., "$54,320" not "123")
+- Structure should support clear visual hierarchy in final renders
+- Component choices should reflect modern, professional UI standards
+- Your decisions directly impact whether the mockup looks professional or amateur
 
 CRITICAL RULES:
 1. You do NOT design - you EXPAND existing intent
