@@ -61,18 +61,8 @@ async function setupTestEnvironment() {
     },
   });
 
-  // Create base prompt artifact (for hash traceability)
+  // Base prompt hash (for traceability)
   const basePromptHash = 'a1b2c3d4e5f6';
-  await prisma.artifact.create({
-    data: {
-      id: randomUUID(),
-      projectId,
-      type: 'base_prompt',
-      path: '/test/base-prompt.md',
-      content: 'Test base prompt',
-      documentHash: basePromptHash,
-    },
-  });
 
   // Create master plan
   const masterPlanHash = '1a2b3c4d5e6f';
@@ -157,6 +147,24 @@ async function setupTestEnvironment() {
     },
   });
 
+  const profileHash = 'screen3hash';
+  await prisma.screenDefinition.create({
+    data: {
+      id: randomUUID(),
+      appRequestId,
+      screenName: 'Profile',
+      content: '# Profile\n\n## Purpose\nUser profile management with settings and preferences.',
+      order: 3,
+      status: 'approved',
+      screenHash: profileHash,
+      screenVersion: 1,
+      approvedBy: 'human',
+      screenIndexHash,
+      basePromptHash,
+      planningDocsHash,
+    },
+  });
+
   // Create approved User Journey (for hash chain)
   const journeyHash = 'journey1hash';
   await prisma.userJourney.create({
@@ -165,6 +173,7 @@ async function setupTestEnvironment() {
       appRequestId,
       roleName: 'User',
       content: 'User logs in via Login screen, then navigates to Dashboard',
+      order: 1,
       status: 'approved',
       journeyHash,
       journeyVersion: 1,
@@ -177,11 +186,13 @@ async function setupTestEnvironment() {
   });
 
   // Initialize Conductor
-  await prisma.appRequest.update({
-    where: { id: appRequestId },
+  await prisma.conductorState.create({
     data: {
-      conductorStatus: 'flows_defined',
-      conductorLocked: false,
+      id: randomUUID(),
+      appRequestId,
+      currentStatus: 'flows_defined',
+      locked: false,
+      awaitingHuman: false,
     },
   });
 
@@ -194,6 +205,7 @@ async function setupTestEnvironment() {
     screenIndexHash,
     dashboardHash,
     loginHash,
+    profileHash,
     journeyHash,
   };
 }
@@ -229,9 +241,9 @@ async function test1_ConductorStateValidation() {
 
   try {
     // Set Conductor to wrong state
-    await prisma.appRequest.update({
-      where: { id: appRequestId },
-      data: { conductorStatus: 'requirements_defined' },
+    await prisma.conductorState.update({
+      where: { appRequestId },
+      data: { currentStatus: 'requirements_defined' },
     });
 
     // Attempt to start Visual Forge
@@ -519,12 +531,12 @@ async function test8_ApprovalFlow() {
     await visualForge.approveMockup(appRequestId, 'Profile');
 
     // Verify Conductor transitioned to designs_ready
-    const appRequest = await prisma.appRequest.findUnique({
-      where: { id: appRequestId },
+    const conductorState = await prisma.conductorState.findUnique({
+      where: { appRequestId },
     });
 
-    if (appRequest?.conductorStatus !== 'designs_ready') {
-      throw new Error(`Expected Conductor to be 'designs_ready', got '${appRequest?.conductorStatus}'`);
+    if (conductorState?.currentStatus !== 'designs_ready') {
+      throw new Error(`Expected Conductor to be 'designs_ready', got '${conductorState?.currentStatus}'`);
     }
 
     console.log('✅ TEST 8 PASSED: Approval advances Conductor to designs_ready');
@@ -563,14 +575,11 @@ async function test9_FailureEscalation() {
         failureCount++;
         if (failureCount >= 2) {
           // After 2 failures, Conductor should be paused
-          const appRequest = await prisma.appRequest.findUnique({
-            where: { id: appRequestId },
+          const conductorState = await prisma.conductorState.findUnique({
+            where: { appRequestId },
           });
 
-          if (
-            appRequest?.conductorPausedReason &&
-            appRequest.conductorPausedReason.includes('failed')
-          ) {
+          if (conductorState?.awaitingHuman) {
             console.log('✅ TEST 9 PASSED: Failure escalation works (pauses after 2 failures)');
             await cleanupTestEnvironment(projectId);
             return;

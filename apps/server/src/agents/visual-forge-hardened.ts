@@ -606,14 +606,25 @@ Follow the screen description exactly. Do not invent features or UI elements.`;
     await this.conductor.lock(appRequestId);
 
     try {
-      // Load isolated context (hash-based)
-      const context = await this.loadIsolatedContext(appRequestId, screenName);
+      // First, load Screen Index to get allowed screens for canonicalization
+      const screenIndex = await this.prisma.screenIndex.findUnique({
+        where: { appRequestId },
+      });
 
-      // Canonicalize screen name
-      const canonicalScreenName = this.canonicalizeScreenName(
-        screenName,
-        context.screenIndex.screens
-      );
+      if (!screenIndex || screenIndex.status !== 'approved' || !screenIndex.screenIndexHash) {
+        throw new Error(
+          `CONTEXT ISOLATION VIOLATION: No approved ScreenIndex found. ` +
+            `Visual Forge requires hash-locked ScreenIndex.`
+        );
+      }
+
+      const allowedScreens: string[] = JSON.parse(screenIndex.screens);
+
+      // Canonicalize screen name FIRST (fail fast on unknown screens)
+      const canonicalScreenName = this.canonicalizeScreenName(screenName, allowedScreens);
+
+      // Now load full isolated context (hash-based)
+      const context = await this.loadIsolatedContext(appRequestId, canonicalScreenName);
 
       // Build deterministic prompt
       const imagePrompt = this.buildDeterministicImagePrompt(
