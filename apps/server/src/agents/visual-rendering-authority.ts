@@ -553,8 +553,8 @@ export class VisualRenderingAuthority {
 YOUR SOLE PURPOSE:
 Convert an approved Screen Definition into an explicit VisualExpansionContract
 for HIGH-FIDELITY, PRODUCTION-READY UI MOCKUP GENERATION. Your output directly
-feeds into DALL-E/GPT Image generation to create professional-quality mockups
-that look like real SaaS applications, not wireframes or prototypes.
+feeds into VCRA (Visual Code Rendering Authority) which generates real HTML/React code,
+creating professional-quality mockups that look like real SaaS applications, not wireframes or prototypes.
 
 QUALITY STANDARDS FOR MOCKUP GENERATION:
 - Your expansion feeds into production-ready, high-fidelity mockup rendering

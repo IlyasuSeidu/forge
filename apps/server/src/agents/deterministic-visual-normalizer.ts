@@ -499,8 +499,9 @@ following approved Visual Expansion Contract FOR HIGH-FIDELITY, PRODUCTION-READY
 
 ## CONTEXT: WHY THIS MATTERS
 
-Your constraints feed directly into DALL-E/GPT Image generation for professional-quality mockups.
-Your density caps determine whether the final mockup looks:
+Your constraints feed directly into VCRA (Visual Code Rendering Authority) which generates
+real HTML/React code for professional-quality mockups. Your density caps determine whether
+the final mockup looks:
 - ✅ PROFESSIONAL: Clean, focused, ChatGPT-level restraint
 - ❌ AMATEUR: Busy, cluttered, overwhelming
 

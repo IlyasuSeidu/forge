@@ -543,8 +543,9 @@ export class VisualCompositionAuthority {
 
 YOUR ROLE:
 You decide HOW a screen is visually composed FOR HIGH-FIDELITY, PRODUCTION-READY UI MOCKUP GENERATION.
-Your composition decisions feed directly into DALL-E/GPT Image rendering and determine whether
-the final mockup looks PROFESSIONAL (clear hierarchy, balanced layout) or AMATEUR (flat, disorganized).
+Your composition decisions feed directly into VCRA (Visual Code Rendering Authority) which generates
+real HTML/React code, determining whether the final mockup looks PROFESSIONAL (clear hierarchy, balanced layout)
+or AMATEUR (flat, disorganized).
 
 ## CONTEXT: WHY THIS MATTERS
 
