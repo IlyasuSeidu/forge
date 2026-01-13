@@ -48,6 +48,7 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 - ✅ **Visual Code Rendering Authority (Tier 3.75)** - Real HTML/React code generation 🆕
 - ✅ **Playwright Integration** - Headless browser rendering replaces DALL-E
 - ✅ Perfect text rendering (no AI blur or hallucination)
+- ✅ **Build Prompt Engineer Hardened** - Constitutional authority with MBOM pattern 🆕
 - ✅ 10/10 test pass rate across all hardened agents
 - ✅ Production-ready code for implementation (40-60% time savings)
 
@@ -82,9 +83,13 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 **Production Hardening:**
 - ✅ PromptEnvelope validation (authority enforcement)
 - ✅ Context isolation (hash-based artifact access)
-- ✅ Determinism guarantees (temperature ≤ 0.3)
+- ✅ Determinism guarantees (temperature ≤ 0.3, stable serialization)
 - ✅ Failure escalation (no silent fallbacks)
 - ✅ 10/10 test coverage on hardened agents
+- ✅ Constitutional authorities: VRA, DVNL, VCA, VCRA, Build Prompt Engineer
+- ✅ Build Ledger tracking (file ownership + dependency conflicts)
+- ✅ Closed-scope enforcement (explicit forbidden files)
+- ✅ Ambiguous language rejection (no "maybe", "perhaps", "consider")
 
 ### 🔄 What's Next
 
@@ -184,7 +189,7 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 
 | Agent | Role | Output |
 |-------|------|--------|
-| **Build Prompt Engineer** | Translates designs into code-ready instructions | `build_prompts/*.md` |
+| **Build Prompt Engineer** (Hardened 🆕) | Manufacturing Bill of Materials (MBOM) compiler | `BuildPromptContract` (hash-locked) |
 | **Execution Planner** | Micro-execution decomposition (max 5-batch size) | Execution plan |
 | **Forge Implementer** | Pure execution engine (5 precondition gates) | Working code |
 | **Completion Auditor** | Verifies build completion (5 decision rules) | Audit report |
@@ -192,6 +197,18 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 **Phase 10 Verification** 🔒 *Automated quality checks + self-healing (max 5 attempts)*
 
 **Human Approval Gate #6** ✋ *Escalation when verification fails after max attempts*
+
+**Build Prompt Engineer Hardened (NEW - Jan 13, 2026)** 🆕:
+- **Authority**: MANUFACTURING_INSTRUCTION_AUTHORITY
+- **Purpose**: Deterministic instruction compiler (WHAT, not HOW)
+- **Contract Schema**: `BuildPromptContract` with hash-locked constraints
+- **12 Forbidden Actions**: writeCode, modifyFiles, suggestImprovements, combineSteps, etc.
+- **5 Allowed Actions**: generatePrompt, validateContract, trackLedger, emitEvents, pauseForApproval
+- **Context Isolation**: Only reads hash-approved artifacts (status='approved' AND hash != null)
+- **Determinism**: Same inputs → same contractHash (SHA-256)
+- **Build Ledger**: Tracks file ownership to prevent conflicts
+- **Public API**: `start()`, `approve()`, `reject()`, `generateNext()`
+- **Status**: 10/10 constitutional tests passing
 
 ---
 
@@ -227,11 +244,15 @@ Screen Definitions (SHA-256)
   ↓
 VRA Contracts (SHA-256)
   ↓
-DVNL Contracts (SHA-256) ← NEW
+DVNL Contracts (SHA-256)
+  ↓
+VCA Contracts (SHA-256)
   ↓
 Mockups (SHA-256)
   ↓
-Build Prompts (SHA-256)
+Project Rules (SHA-256)
+  ↓
+Build Prompt Contracts (SHA-256) ← NEW: contractHash + contractJson
   ↓
 Working Code ✅
 ```
@@ -532,7 +553,8 @@ forge/
 │   │   │   │   ├── deterministic-visual-normalizer.ts    # NEW
 │   │   │   │   ├── visual-forge-hardened.ts              # UPGRADED
 │   │   │   │   ├── constraint-compiler.ts
-│   │   │   │   ├── build-prompt-engineer.ts
+│   │   │   │   ├── build-prompt-engineer.ts              # Legacy
+│   │   │   │   ├── build-prompt-engineer-hardened.ts     # NEW (Production)
 │   │   │   │   ├── execution-planner.ts
 │   │   │   │   ├── forge-implementer.ts
 │   │   │   │   ├── completion-auditor.ts
@@ -572,6 +594,7 @@ forge/
 - Each agent has a single, non-overlapping mandate
 - No "do everything" agents that produce inconsistent results
 - Clear boundaries enable deterministic testing (10/10 pass rates)
+- Constitutional authorities with explicit allowed/forbidden actions
 
 **Auditability:**
 - Every decision stored and traceable via hash chain
@@ -933,10 +956,11 @@ Comprehensive documentation in `/docs`:
 - [**AGENT-TAXONOMY.md**](docs/AGENT-TAXONOMY.md) - Complete 12-agent framework & tier system
 - [**INVARIANTS.md**](docs/INVARIANTS.md) - Phase 10 frozen guarantees
 - [**VISUAL_RENDERING_AUTHORITY.md**](VISUAL_RENDERING_AUTHORITY.md) - VRA specification
-- [**DETERMINISTIC_VISUAL_NORMALIZER.md**](DETERMINISTIC_VISUAL_NORMALIZER.md) - DVNL specification (NEW) 🆕
-- [**VISUAL_FORGE_HARDENED.md**](VISUAL_FORGE_HARDENED.md) - Visual Forge upgrades (UPDATED)
+- [**DETERMINISTIC_VISUAL_NORMALIZER.md**](DETERMINISTIC_VISUAL_NORMALIZER.md) - DVNL specification 🆕
+- [**VISUAL_FORGE_HARDENED.md**](VISUAL_FORGE_HARDENED.md) - Visual Forge upgrades
 - [**FORGE-CONDUCTOR-IMPLEMENTATION.md**](docs/FORGE-CONDUCTOR-IMPLEMENTATION.md) - State machine orchestrator
-- [**BUILD_PROMPT_EXECUTION_CONTRACT.md**](docs/BUILD_PROMPT_EXECUTION_CONTRACT.md) - Build prompt engineering
+- [**BUILD_PROMPT_ENGINEER_HARDENED.md**](docs/BUILD_PROMPT_ENGINEER_HARDENED.md) - MBOM constitutional authority (NEW) 🆕
+- [**BUILD_PROMPT_EXECUTION_CONTRACT.md**](docs/BUILD_PROMPT_EXECUTION_CONTRACT.md) - Build prompt engineering (Legacy)
 - [**COMPLETION_AUDITOR.md**](docs/COMPLETION_AUDITOR.md) - Quality auditing
 - [**EXECUTION_PLANNER.md**](docs/EXECUTION_PLANNER.md) - Micro-execution decomposition
 - [**FORGE_IMPLEMENTER.md**](docs/FORGE_IMPLEMENTER.md) - Code implementation

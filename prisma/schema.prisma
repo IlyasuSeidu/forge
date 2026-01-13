@@ -532,7 +532,7 @@ model BuildPrompt {
   title         String
   content       String // Markdown document
   sequenceIndex Int
-  status        String // "draft" | "awaiting_approval" | "approved"
+  status        String // "awaiting_approval" | "approved" | "rejected"
   feedback      String?
 
   // Execution contract fields
@@ -543,6 +543,11 @@ model BuildPrompt {
   dependencyManifest String @default("{}") // JSON object
   modificationIntent String @default("{}") // JSON object
 
+  // Production Hardening (2026-01-13)
+  contractHash String? // SHA-256 hash of BuildPromptContract
+  contractJson String? // Full contract for immutability
+  approvedBy   String? // "human" or username
+
   createdAt  DateTime   @default(now())
   approvedAt DateTime?
   appRequest AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
@@ -550,6 +555,7 @@ model BuildPrompt {
   @@index([appRequestId])
   @@index([sequenceIndex])
   @@index([status])
+  @@index([contractHash])
 }
 
 model ExecutionPlan {
