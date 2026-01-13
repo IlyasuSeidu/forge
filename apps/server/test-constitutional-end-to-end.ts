@@ -35,7 +35,17 @@ const conductor = new ForgeConductor(prisma, logger);
  * TEST INPUT (from MASTER PROMPT)
  */
 const TEST_INPUT = {
-  prompt: `A professional SaaS web application for freelance project and task management, allowing freelancers to manage clients, projects, tasks, deadlines, and invoices in a clean, modern dashboard. Target users are solo freelancers and small agencies. The system must be realistic, minimal, and production-ready.`,
+  prompt: `A simple web application for personal task management.
+
+Core Features:
+- Task List: Create, edit, and delete tasks
+- Task Details: Set due dates and mark tasks complete
+- Project Organization: Organize tasks into projects
+- Clean Interface: Minimal, focused design
+
+Target Users: Individuals managing their personal todos
+
+Constraints: No teams, no collaboration, no billing - just simple task tracking with Task List, Task Details, and Project Organization modules.`,
 };
 
 /**
@@ -214,7 +224,14 @@ async function runConstitutionalEndToEndTest() {
     );
 
     // Answer all questions using Synthetic Founder
-    for (let step = 0; step < sessionSummary.totalSteps; step++) {
+    let questionCount = 0;
+    while (true) {
+      // Check session status
+      const currentSession = await foundryArchitect.getSession(appRequestId);
+      if (currentSession?.status === 'awaiting_approval') {
+        break; // All questions answered, Base Prompt generated
+      }
+
       // Have Synthetic Founder propose answer to current question
       const proposedAnswer = await syntheticFounder.proposeAnswer(appRequestId);
 
@@ -224,13 +241,22 @@ async function runConstitutionalEndToEndTest() {
       // Submit the answer to Foundry Architect
       await foundryArchitect.submitAnswer(appRequestId, proposedAnswer.contract.proposedAnswer);
 
+      questionCount++;
+
       logEntry({
         tier: 'TIER-1',
         agent: 'SyntheticFounder',
-        action: `Answered question ${step + 1}/${sessionSummary.totalSteps}`,
+        action: `Answered question ${questionCount}`,
         status: 'approved',
       });
     }
+
+    logEntry({
+      tier: 'TIER-1',
+      agent: 'SyntheticFounder',
+      action: `All ${questionCount} questions answered`,
+      status: 'completed',
+    });
 
     // Base Prompt is auto-generated after all questions answered
     const basePromptSession = await prisma.foundrySession.findUnique({
@@ -270,7 +296,7 @@ async function runConstitutionalEndToEndTest() {
       status: 'started',
     });
 
-    const productStrategist = new ProductStrategistHardened(prisma, conductor, logger, {
+    const productStrategist = new ProductStrategistHardened(prisma, conductor, logger, null, {
       apiKey: process.env.ANTHROPIC_API_KEY,
       model: 'claude-sonnet-4-20250514',
       temperature: 0.2,
@@ -334,7 +360,7 @@ async function runConstitutionalEndToEndTest() {
       status: 'started',
     });
 
-    const screenCartographer = new ScreenCartographerHardened(prisma, conductor, logger, {
+    const screenCartographer = new ScreenCartographerHardened(prisma, conductor, logger, null, {
       apiKey: process.env.ANTHROPIC_API_KEY,
       model: 'claude-sonnet-4-20250514',
       temperature: 0.2,
