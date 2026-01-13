@@ -406,41 +406,59 @@ export class CompletionAuditorHardened {
   /**
    * CHECK 6: Verification Integrity
    *
-   * Static and runtime verification passed
+   * Verification Executor ran and all checks passed
+   *
+   * CONSTITUTIONAL REQUIREMENT:
+   * - Reads VerificationResult (hash-locked evidence)
+   * - Does NOT re-run verification
+   * - Does NOT interpret results
+   * - Does NOT soften failures
+   * - ONLY checks: overallStatus === 'PASSED'
    */
   private async check6_verificationIntegrity(appRequestId: string): Promise<CheckResult> {
     this.validateAction('compareStates');
 
-    // Check if verification records exist
-    const verifications = await this.prisma.verification.findMany({
+    // Check if VerificationResult exists
+    const verificationResult = await this.prisma.verificationResult.findFirst({
       where: { appRequestId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { executedAt: 'desc' },
     });
 
-    if (verifications.length === 0) {
+    if (!verificationResult) {
       return {
         checkName: 'Verification Integrity',
         passed: false,
-        reason: 'No verification records found',
+        reason: 'No VerificationResult found - Verification Executor did not run',
       };
     }
 
-    // Get most recent verification
-    const latest = verifications[0];
+    // Check if verification passed (binary check)
+    if (verificationResult.overallStatus !== 'PASSED') {
+      // Parse failed steps for context (informational only, not interpretation)
+      const steps = JSON.parse(verificationResult.stepsJson);
+      const failedSteps = steps.filter((s: any) => s.status === 'FAILED');
 
-    // Check if verification passed
-    if (latest.status !== 'passed') {
       return {
         checkName: 'Verification Integrity',
         passed: false,
-        reason: `Latest verification status is '${latest.status}', expected 'passed'`,
+        reason: `Verification FAILED: ${failedSteps.length} step(s) failed`,
+        details: {
+          overallStatus: verificationResult.overallStatus,
+          verifier: verificationResult.verifier,
+          failedStepCount: failedSteps.length,
+        },
       };
     }
 
+    // Verification passed - return evidence
     return {
       checkName: 'Verification Integrity',
       passed: true,
-      details: { status: latest.status, attempt: latest.attempt },
+      details: {
+        overallStatus: verificationResult.overallStatus,
+        verifier: verificationResult.verifier,
+        resultHash: verificationResult.resultHash.substring(0, 16) + '...',
+      },
     };
   }
 
@@ -533,6 +551,57 @@ export class CompletionAuditorHardened {
       }
     }
 
+    // Get VerificationResult (if exists)
+    const verificationResult = await this.prisma.verificationResult.findFirst({
+      where: { appRequestId },
+      orderBy: { executedAt: 'desc' },
+    });
+
+    // If VerificationResult exists, validate its hash chain
+    if (verificationResult) {
+      // Verify BuildPrompt hash reference
+      if (prompts.length > 0) {
+        const referencedPrompt = prompts.find(p => p.contractHash === verificationResult.buildPromptHash);
+        if (!referencedPrompt) {
+          return {
+            checkName: 'Hash Chain Integrity',
+            passed: false,
+            reason: `VerificationResult.buildPromptHash does not match any approved BuildPrompt`,
+          };
+        }
+      }
+
+      // Verify ExecutionPlan hash reference
+      if (plans.length > 0) {
+        const referencedPlan = plans.find(p => p.contractHash === verificationResult.executionPlanHash);
+        if (!referencedPlan) {
+          return {
+            checkName: 'Hash Chain Integrity',
+            passed: false,
+            reason: `VerificationResult.executionPlanHash does not match any approved ExecutionPlan`,
+          };
+        }
+      }
+
+      // Verify ProjectRuleSet hash reference
+      if (verificationResult.rulesHash !== ruleSet.rulesHash) {
+        return {
+          checkName: 'Hash Chain Integrity',
+          passed: false,
+          reason: `VerificationResult.rulesHash does not match approved ProjectRuleSet.rulesHash`,
+        };
+      }
+
+      // Verify VerificationResult has its own hash
+      if (!verificationResult.resultHash) {
+        return {
+          checkName: 'Hash Chain Integrity',
+          passed: false,
+          reason: `VerificationResult missing resultHash`,
+        };
+      }
+    }
+
     return {
       checkName: 'Hash Chain Integrity',
       passed: true,
@@ -540,6 +609,7 @@ export class CompletionAuditorHardened {
         rulesHash: ruleSet.rulesHash,
         promptCount: prompts.length,
         planCount: plans.length,
+        verificationResultHash: verificationResult?.resultHash?.substring(0, 16) + '...' || 'N/A',
       },
     };
   }

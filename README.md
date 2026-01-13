@@ -10,7 +10,7 @@
 
 ## 🚀 What is Forge?
 
-Forge is a **production-grade system** that transforms natural-language ideas into fully built, verified applications using a specialized assembly line of 12 AI agents.
+Forge is a **production-grade system** that transforms natural-language ideas into fully built, verified applications using a specialized assembly line of 15 AI agents.
 
 Unlike other AI code generators that ship broken code silently, Forge **guarantees quality** through:
 - ✅ **Production-ready mockups** via VCRA + Playwright (perfect text rendering, real code)
@@ -24,9 +24,9 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 
 ## 📊 Current Status
 
-**Production-Grade 12-Agent Assembly Line** (Updated: January 12, 2026)
+**Production-Grade 15-Agent Assembly Line** (Updated: January 13, 2026)
 
-### ⚡ Recent Transformations (Jan 10-12, 2026)
+### ⚡ Recent Transformations (Jan 10-13, 2026)
 
 #### **Day 1: Phase 10 Quality Assurance** (Jan 10-11)
 - ✅ Static verification engine (DOM/file integrity)
@@ -52,6 +52,17 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 - ✅ 10/10 test pass rate across all hardened agents
 - ✅ Production-ready code for implementation (40-60% time savings)
 
+#### **Day 4: Phase 10 Constitutional Hardening** (Jan 13) 🆕
+- ✅ **Verification Executor Hardened (Tier 5.0)** - Adversarial truth engine with ZERO intelligence
+- ✅ **Verification Report Generator Hardened (Tier 5.5)** - Pure projection with ZERO judgment
+- ✅ **Repair Agent Hardened (Tier 6)** - Corrective execution (schema only)
+- ✅ Completion Auditor integration with VerificationResult evidence
+- ✅ E2E test with real verification (not simulated)
+- ✅ Full hash chain: Rules → BuildPrompt → ExecutionPlan → ExecutionLog → VerificationResult → CompletionReport
+- ✅ 10/10 constitutional tests for Verification Executor
+- ✅ 10/10 constitutional tests for Verification Report Generator
+- ✅ **15-agent assembly line complete** (was 12)
+
 ### 🎯 What's Fully Implemented
 
 **Core Infrastructure:**
@@ -61,12 +72,13 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 - ✅ Workspace isolation with path validation
 - ✅ Complete audit trail via event logging
 
-**12-Agent Assembly Line:**
+**15-Agent Assembly Line:**
 - ✅ **Tier 1**: Foundry Architect + Synthetic Founder
 - ✅ **Tier 2**: Product Strategist + Screen Cartographer + Journey Orchestrator
 - ✅ **Tier 3**: Visual Rendering Authority + DVNL + VCA + VCRA + Visual Forge + Constraint Compiler
 - ✅ **Tier 4**: Build Prompt Engineer + Execution Planner + Forge Implementer + Completion Auditor
-- ✅ **Tier 5**: Forge Conductor (master orchestrator)
+- ✅ **Tier 5**: Verification Executor + Verification Report Generator + Forge Conductor
+- ✅ **Tier 6**: Repair Agent (schema only)
 
 **AI Integrations:**
 - ✅ Claude Sonnet 4.5 (code generation + VCRA code generation)
@@ -86,10 +98,11 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 - ✅ Determinism guarantees (temperature ≤ 0.3, stable serialization)
 - ✅ Failure escalation (no silent fallbacks)
 - ✅ 10/10 test coverage on hardened agents
-- ✅ Constitutional authorities: VRA, DVNL, VCA, VCRA, Build Prompt Engineer
+- ✅ Constitutional authorities: VRA, DVNL, VCA, VCRA, Build Prompt Engineer, Verification Executor, Verification Report Generator
 - ✅ Build Ledger tracking (file ownership + dependency conflicts)
 - ✅ Closed-scope enforcement (explicit forbidden files)
 - ✅ Ambiguous language rejection (no "maybe", "perhaps", "consider")
+- ✅ Phase 10 constitutional verification (ZERO intelligence, ZERO judgment)
 
 ### 🔄 What's Next
 
@@ -110,9 +123,9 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 
 ---
 
-## 🏗️ The 12-Agent Assembly Line
+## 🏗️ The 15-Agent Assembly Line
 
-Forge uses **specialized agents** organized in a 5-tier hierarchy. Each agent has a single, non-overlapping mandate.
+Forge uses **specialized agents** organized in a 6-tier hierarchy. Each agent has a single, non-overlapping mandate.
 
 ### **Tier 1: Strategy & Intent** (Foundation)
 
@@ -251,18 +264,68 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 
 ---
 
-### **Tier 5: Master & Coordination** (Control)
+### **Tier 5: Verification & Coordination** (Control)
 
-| Agent | Role |
-|-------|------|
-| **Forge Conductor** | State machine orchestrator - enforces "one agent at a time" rule |
-| **Context Librarian** | Indexes outputs, surfaces context (optional) |
+| Agent | Role | Output |
+|-------|------|--------|
+| **Verification Executor** (Hardened 🆕) | Adversarial truth engine - mechanical verification | `VerificationResult` (hash-locked) |
+| **Verification Report Generator** (Hardened 🆕) | Pure projection - human-readable reports | `VerificationReport` (hash-locked) |
+| **Forge Conductor** | State machine orchestrator - enforces "one agent at a time" rule | State transitions |
+
+**Verification Executor Hardened (NEW - Jan 13, 2026)** 🆕:
+- **Authority**: VERIFICATION_EXECUTION_AUTHORITY
+- **Purpose**: Execute verification steps exactly as specified and record objective truth
+- **Intelligence Level**: ZERO (no interpretation, no helping, no retries)
+- **Contract Schema**: `VerificationResultContract` with deterministic hash-locking
+- **24 Forbidden Actions**: inventSteps, modifyCommands, retryFailedSteps, interpretResults, maskFailures, etc.
+- **7 Allowed Actions**: loadHashApprovedInstructions, executeCommands, captureOutputs, recordMetadata, persistResults, emitEvents, haltOnFatalError
+- **Context Isolation**: Only reads approved BuildPrompt + ExecutionPlan + ProjectRuleSet (all hash-locked)
+- **Sequential Execution**: Runs verification commands one at a time, STOPS IMMEDIATELY on first failure
+- **Determinism**: Same criteria → same commands → same execution order → same hash
+- **Philosophy**: "Verification is mechanical truth, not interpretation. If this agent ever helps, Forge is compromised."
+- **Public API**: `execute(appRequestId)`
+- **Status**: 10/10 constitutional tests passing
+
+**Verification Report Generator Hardened (NEW - Jan 13, 2026)** 🆕:
+- **Authority**: VERIFICATION_REPORT_AUTHORITY
+- **Purpose**: Mechanical projection of VerificationResult into human-readable format
+- **Intelligence Level**: ZERO (no interpretation, no judgment, no recommendations)
+- **Judgment Level**: ZERO (no verdict power)
+- **Contract Schema**: `VerificationReportContract` with deterministic hash-locking
+- **17 Forbidden Actions**: reRunVerification, interpretResults, suggestFixes, maskFailures, declarePASS/FAIL, etc.
+- **6 Allowed Actions**: loadHashApprovedVerificationResult, projectDataVerbatim, computeSHA256Hash, persistImmutableReport, emitAuditEvent
+- **Context Isolation**: Only reads hash-locked VerificationResult (status='approved' AND resultHash != null)
+- **Pure Projection**: Projects verification steps verbatim (no summarization, no interpretation)
+- **Constitutional Footer**: "This report is a mechanical projection of immutable verification results. It contains no interpretation, judgment, or recommendation."
+- **Philosophy**: "If this agent ever 'helps,' Forge is lying."
+- **Public API**: `generate(appRequestId)`
+- **Status**: 10/10 constitutional tests passing
 
 **Forge Conductor** (Implemented Jan 11, 2026):
 - **Purpose**: Deterministic orchestration with lock/unlock mechanism
 - **ALLOWED_TRANSITIONS**: Whitelist enforcing single-agent-at-a-time execution
 - **Methods**: `pauseForHuman()`, `lock()`, `unlock()` for human approval gates
 - **Guarantees**: No parallel execution, no skipped steps, complete dependency tracking
+
+---
+
+### **Tier 6: Repair & Recovery** (Corrective Execution) 🆕
+
+| Agent | Role | Status |
+|-------|------|--------|
+| **Repair Agent** (Hardened 🆕) | Corrective executor - fixes verification failures | Schema only (implementation pending) |
+
+**Repair Agent Hardened (SCHEMA ONLY - Jan 13, 2026)** 🆕:
+- **Authority**: REPAIR_EXECUTION_AUTHORITY
+- **Purpose**: Execute bounded corrective actions when verification fails (max 5 attempts)
+- **Intelligence Level**: ZERO (no creative problem-solving)
+- **Database Models**: `RepairPlan` (hash-locked) + `RepairExecutionLog` (immutable)
+- **Constitutional Constraints**:
+  - Maximum 5 repair attempts per verification failure
+  - Must re-verify after each repair
+  - Can only modify files from approved scope
+  - No loops, no interpretation, no optimization
+- **Status**: Database schemas implemented, agent implementation pending
 
 ---
 
@@ -296,6 +359,10 @@ Build Prompt Contracts (SHA-256) ← NEW: contractHash + contractJson
 Execution Plan Contracts (SHA-256) ← NEW: contractHash + contractJson + buildPromptHash
   ↓
 Execution Logs (SHA-256) ← NEW: logHash (excludes timestamps for determinism)
+  ↓
+Verification Result (SHA-256) ← NEW: resultHash (mechanical truth, PASSED or FAILED)
+  ↓
+Verification Report (SHA-256) ← NEW: reportHash (human-readable projection)
   ↓
 Completion Report (SHA-256) ← NEW: reportHash (binary verdict: COMPLETE or NOT_COMPLETE)
   ↓
@@ -402,7 +469,7 @@ Verification rules may only be **strengthened** (more checks, stricter rules) or
 | Self-Healing | ❌ No auto-repair | ✅ Up to 5 bounded repair attempts |
 | Human Control | ❌ Black box | ✅ 6 approval gates with full transparency |
 | Traceability | ❌ No audit trail | ✅ Complete hash chain from idea to code |
-| Architecture | ❌ Single-shot generation | ✅ 12-agent assembly line |
+| Architecture | ❌ Single-shot generation | ✅ 15-agent assembly line |
 
 ### vs. ChatGPT/Claude Direct
 | Feature | Them | Forge |
@@ -424,7 +491,7 @@ Verification rules may only be **strengthened** (more checks, stricter rules) or
 
 ---
 
-## 📈 Performance Metrics (January 12, 2026)
+## 📈 Performance Metrics (January 13, 2026)
 
 ### Agent Test Coverage
 - **All Hardened Agents**: 10/10 test pass rate
@@ -432,6 +499,8 @@ Verification rules may only be **strengthened** (more checks, stricter rules) or
 - **Deterministic Visual Normalizer**: 10/10 with real Claude API 🆕
 - **Visual Forge**: 10/10 production hardening tests
 - **Journey Orchestrator**: 10/10 determinism tests
+- **Verification Executor**: 10/10 constitutional tests 🆕
+- **Verification Report Generator**: 10/10 constitutional tests 🆕
 
 ### Image Generation Performance
 - **Model**: GPT Image 1.5 (primary)
@@ -439,11 +508,12 @@ Verification rules may only be **strengthened** (more checks, stricter rules) or
 - **Speed**: 34 seconds for 3.06 MB high-quality mockups
 - **Quality**: ChatGPT-level output fidelity
 
-### Development Velocity (3-Day Sprint)
-- **Commits**: 35+ production commits
-- **New Agents**: 4 (VRA, DVNL, enhanced Visual Forge, Forge Conductor)
-- **Test Coverage**: 10/10 across all new implementations
-- **Documentation**: 13 comprehensive markdown files
+### Development Velocity (4-Day Sprint)
+- **Commits**: 40+ production commits
+- **New Agents**: 6 (VRA, DVNL, VCA, VCRA, Verification Executor, Verification Report Generator)
+- **Test Coverage**: 10/10 across all hardened agents
+- **Documentation**: 15+ comprehensive markdown files
+- **Phase 10**: Full constitutional hardening with ZERO intelligence verification 🆕
 
 ---
 
@@ -1006,6 +1076,8 @@ Comprehensive documentation in `/docs`:
 - [**FORGE-CONDUCTOR-IMPLEMENTATION.md**](docs/FORGE-CONDUCTOR-IMPLEMENTATION.md) - State machine orchestrator
 - [**BUILD_PROMPT_ENGINEER_HARDENED.md**](docs/BUILD_PROMPT_ENGINEER_HARDENED.md) - MBOM constitutional authority (NEW) 🆕
 - [**BUILD_PROMPT_EXECUTION_CONTRACT.md**](docs/BUILD_PROMPT_EXECUTION_CONTRACT.md) - Build prompt engineering (Legacy)
+- [**VERIFICATION_EXECUTOR_HARDENED.md**](docs/VERIFICATION_EXECUTOR_HARDENED.md) - Adversarial truth engine (NEW) 🆕
+- [**VERIFICATION_REPORT_GENERATOR_HARDENED.md**](docs/VERIFICATION_REPORT_GENERATOR_HARDENED.md) - Pure projection report generator (NEW) 🆕
 - [**COMPLETION_AUDITOR.md**](docs/COMPLETION_AUDITOR.md) - Quality auditing
 - [**EXECUTION_PLANNER.md**](docs/EXECUTION_PLANNER.md) - Micro-execution decomposition
 - [**FORGE_IMPLEMENTER.md**](docs/FORGE_IMPLEMENTER.md) - Code implementation

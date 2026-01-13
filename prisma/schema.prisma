@@ -118,6 +118,10 @@ model AppRequest {
   updatedAt          DateTime            @updatedAt
   project            Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   verifications      Verification[]
+  verificationResults VerificationResult[]
+  verificationReports VerificationReport[]
+  repairPlans        RepairPlan[]
+  repairExecutionLogs RepairExecutionLog[]
   conductorState     ConductorState?
   foundrySession     FoundrySession?
   planningDocuments  PlanningDocument[]
@@ -639,4 +643,138 @@ model CompletionDecision {
   @@index([appRequestId])
   @@index([decisionType])
   @@index([createdAt])
+}
+
+// ============================================================================
+// TIER 5: VERIFICATION & SELF-HEALING (Phase 10 Constitutional Hardening)
+// ============================================================================
+
+model VerificationResult {
+  id                 String   @id
+  appRequestId       String
+  buildPromptHash    String   // Reference to approved BuildPrompt (hash-chain)
+  executionPlanHash  String   // Reference to approved ExecutionPlan (hash-chain)
+  rulesHash          String   // Reference to approved ProjectRuleSet (hash-chain)
+
+  // Immutable verification steps (JSON serialized VerificationStepResult[])
+  stepsJson          String   // Array of {stepId, command, exitCode, stdout, stderr, durationMs, status}
+
+  overallStatus      String   // "PASSED" | "FAILED"
+  verifier           String   // "VerificationExecutorHardened"
+
+  // Hash-locking (SHA-256)
+  resultHash         String   @unique // Deterministic hash (excludes timestamps)
+
+  // Metadata (excluded from hash)
+  executedAt         DateTime @default(now())
+
+  appRequest         AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([buildPromptHash])
+  @@index([executionPlanHash])
+  @@index([overallStatus])
+  @@index([resultHash])
+}
+
+model VerificationReport {
+  id                    String   @id
+  appRequestId          String
+  verificationResultId  String   // Reference to VerificationResult (source of truth)
+
+  // Immutable report content (JSON serialized VerificationReportContract)
+  reportJson            String   // Full report for immutability
+
+  // Report metadata
+  generator             String   // "VerificationReportGeneratorHardened"
+
+  // Hash-locking (SHA-256)
+  reportHash            String   @unique // Deterministic hash (excludes timestamps)
+
+  // Hash references (for audit trail)
+  verificationResultHash String  // Copy from VerificationResult.resultHash
+  buildPromptHash        String  // Copy from VerificationResult.buildPromptHash
+  executionPlanHash      String  // Copy from VerificationResult.executionPlanHash
+  rulesHash              String  // Copy from VerificationResult.rulesHash
+
+  // Metadata (excluded from hash)
+  generatedAt            DateTime @default(now())
+
+  appRequest             AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([verificationResultId])
+  @@index([reportHash])
+  @@index([verificationResultHash])
+}
+
+// ============================================================================
+// TIER 6: REPAIR (Post-Verification Corrective Execution)
+// ============================================================================
+
+model RepairPlan {
+  id                        String   @id
+  appRequestId              String
+  verificationResultId      String   // Reference to FAILED VerificationResult
+
+  // Immutable repair plan content (JSON serialized RepairPlanContract)
+  repairPlanJson            String   // Full plan for immutability
+
+  // Allowed modifications (explicit file list)
+  allowedFileModifications  String   // JSON array of file paths
+
+  // Repair steps (JSON serialized)
+  repairStepsJson           String   // Array of {stepId, file, intent, verificationStepReference}
+
+  // Approval metadata
+  approvedBy                String   // Human who approved repair
+  status                    String   // "awaiting_approval" | "approved" | "rejected"
+
+  // Hash-locking (SHA-256)
+  repairPlanHash            String   @unique // Deterministic hash
+
+  // Hash references (audit trail)
+  sourceVerificationHash    String   // Copy from VerificationResult.resultHash
+
+  // Metadata (excluded from hash)
+  createdAt                 DateTime @default(now())
+  approvedAt                DateTime?
+
+  appRequest                AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([verificationResultId])
+  @@index([status])
+  @@index([repairPlanHash])
+  @@index([sourceVerificationHash])
+}
+
+model RepairExecutionLog {
+  id                   String   @id
+  appRequestId         String
+  repairPlanId         String   // Reference to approved RepairPlan
+
+  // Immutable execution log (JSON serialized)
+  executionLogJson     String   // Full log for immutability
+
+  // Execution results
+  overallStatus        String   // "COMPLETED" | "FAILED"
+  executor             String   // "RepairAgentHardened"
+
+  // Hash-locking (SHA-256)
+  executionLogHash     String   @unique // Deterministic hash
+
+  // Hash references (audit trail)
+  repairPlanHash       String   // Copy from RepairPlan.repairPlanHash
+
+  // Metadata (excluded from hash)
+  executedAt           DateTime @default(now())
+
+  appRequest           AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([repairPlanId])
+  @@index([overallStatus])
+  @@index([executionLogHash])
+  @@index([repairPlanHash])
 }
