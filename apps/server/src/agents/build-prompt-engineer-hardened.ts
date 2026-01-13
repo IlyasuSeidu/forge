@@ -473,12 +473,11 @@ export class BuildPromptEngineerHardened {
    * Compute hash of contract (deterministic)
    */
   private computeContractHash(contract: Omit<BuildPromptContract, 'contractHash'>): string {
-    // Stable serialization
+    // Stable serialization - EXCLUDE promptId for determinism (it's a UUID)
     const serialized = JSON.stringify(
       contract,
       [
-        'promptId',
-        'sequenceNumber',
+        'sequenceNumber', // Include sequence but not promptId
         'title',
         'intent',
         'scope',

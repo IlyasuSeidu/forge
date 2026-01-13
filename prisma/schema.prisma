@@ -520,6 +520,11 @@ model ProjectRuleSet {
   status       String // "draft" | "awaiting_approval" | "approved"
   createdAt    DateTime   @default(now())
   approvedAt   DateTime?
+
+  // Immutability & Hash Chain (Production Hardening - Jan 13, 2026)
+  rulesHash    String? // SHA-256 hash of approved rules (locked on approval)
+  approvedBy   String? // "human" | null
+
   appRequest   AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
 
   @@index([appRequestId])
