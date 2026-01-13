@@ -192,7 +192,7 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 | **Build Prompt Engineer** (Hardened 🆕) | Manufacturing Bill of Materials (MBOM) compiler | `BuildPromptContract` (hash-locked) |
 | **Execution Planner** (Hardened 🆕) | Factory Line Controller - deterministic task sequencing | `ExecutionPlanContract` (hash-locked) |
 | **Forge Implementer** (Hardened 🆕) | Robotic Executor - zero intelligence, zero interpretation | `ExecutionLog` (deterministic) |
-| **Completion Auditor** | Verifies build completion (5 decision rules) | Audit report |
+| **Completion Auditor** (Hardened 🆕) | Final Constitutional Gatekeeper - binary verdict only | `CompletionReport` (hash-locked) |
 
 **Phase 10 Verification** 🔒 *Automated quality checks + self-healing (max 5 attempts)*
 
@@ -234,6 +234,19 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 - **Failure Handling**: Immediate halt, lock conductor, require human intervention
 - **Determinism**: Same ExecutionPlan → same ExecutionLog → same logHash (excludes timestamps)
 - **Public API**: `execute(planId)`, `getStatus(planId)`
+- **Status**: 10/10 constitutional tests passing
+
+**Completion Auditor Hardened (NEW - Jan 13, 2026)** 🆕:
+- **Authority**: COMPLETION_AUDIT_AUTHORITY (Final Gate)
+- **Purpose**: Final Constitutional Gatekeeper - sole authority to declare COMPLETE or NOT_COMPLETE
+- **Philosophy**: "If this agent is wrong, Forge is lying."
+- **14 Forbidden Actions**: generateCode, modifyCode, suggestFixes, retryExecution, ignoreFailures, skipChecks, assumeIntent, declareMostlyComplete, etc.
+- **5 Allowed Actions**: loadHashLockedArtifacts, compareHashes, compareCounts, compareStates, emitVerdict
+- **9 Completion Checks**: Rule integrity, prompt integrity, execution integrity, log integrity, failure scan, verification integrity, artifact coverage, hash chain integrity, conductor final state
+- **Binary Decision**: ALL checks pass → COMPLETE, ANY check fails → NOT_COMPLETE (no middle ground)
+- **Determinism**: Same build state → same CompletionReport → same reportHash
+- **Failure Philosophy**: "If Forge cannot prove completeness, it is incomplete."
+- **Public API**: `audit(appRequestId)`, `getReport(appRequestId)`
 - **Status**: 10/10 constitutional tests passing
 
 ---
@@ -283,6 +296,8 @@ Build Prompt Contracts (SHA-256) ← NEW: contractHash + contractJson
 Execution Plan Contracts (SHA-256) ← NEW: contractHash + contractJson + buildPromptHash
   ↓
 Execution Logs (SHA-256) ← NEW: logHash (excludes timestamps for determinism)
+  ↓
+Completion Report (SHA-256) ← NEW: reportHash (binary verdict: COMPLETE or NOT_COMPLETE)
   ↓
 Working Code ✅
 ```
