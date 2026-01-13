@@ -191,7 +191,7 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 |-------|------|--------|
 | **Build Prompt Engineer** (Hardened 🆕) | Manufacturing Bill of Materials (MBOM) compiler | `BuildPromptContract` (hash-locked) |
 | **Execution Planner** (Hardened 🆕) | Factory Line Controller - deterministic task sequencing | `ExecutionPlanContract` (hash-locked) |
-| **Forge Implementer** | Pure execution engine (5 precondition gates) | Working code |
+| **Forge Implementer** (Hardened 🆕) | Robotic Executor - zero intelligence, zero interpretation | `ExecutionLog` (deterministic) |
 | **Completion Auditor** | Verifies build completion (5 decision rules) | Audit report |
 
 **Phase 10 Verification** 🔒 *Automated quality checks + self-healing (max 5 attempts)*
@@ -221,6 +221,19 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 - **Task Sequencing**: Dependencies → File Creates (alphabetical) → File Modifies (alphabetical)
 - **Validation**: Cycle detection (Kahn's algorithm), dependency validation, sequential task IDs
 - **Public API**: `start()`, `approve()`, `reject()`, `generateNext()`
+- **Status**: 10/10 constitutional tests passing
+
+**Forge Implementer Hardened (NEW - Jan 13, 2026)** 🆕:
+- **Authority**: FORGE_IMPLEMENTATION_AUTHORITY
+- **Purpose**: Robotic Executor - executes approved ExecutionPlanContracts exactly as written
+- **Philosophy**: "This is a robot arm, not an agent. If it ever 'helps', the system is broken."
+- **14 Forbidden Actions**: generateIdeas, interpretInstructions, modifyTaskOrder, skipTasks, combineTasks, retryFailedTasks, autoFixErrors, proceedAfterFailure, etc.
+- **5 Allowed Actions**: executeTask, verifyOutcome, emitResult, haltOnFailure, loadHashLockedContext
+- **Context Isolation**: MAXIMUM - only hash-locked ExecutionPlan, BuildPrompt, ProjectRuleSet
+- **Execution Guarantees**: One task at a time, exact order, halt on failure, no retry, no rollback
+- **Failure Handling**: Immediate halt, lock conductor, require human intervention
+- **Determinism**: Same ExecutionPlan → same ExecutionLog → same logHash (excludes timestamps)
+- **Public API**: `execute(planId)`, `getStatus(planId)`
 - **Status**: 10/10 constitutional tests passing
 
 ---
@@ -268,6 +281,8 @@ Project Rules (SHA-256)
 Build Prompt Contracts (SHA-256) ← NEW: contractHash + contractJson
   ↓
 Execution Plan Contracts (SHA-256) ← NEW: contractHash + contractJson + buildPromptHash
+  ↓
+Execution Logs (SHA-256) ← NEW: logHash (excludes timestamps for determinism)
   ↓
 Working Code ✅
 ```
