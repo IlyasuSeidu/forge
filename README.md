@@ -190,7 +190,7 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 | Agent | Role | Output |
 |-------|------|--------|
 | **Build Prompt Engineer** (Hardened 🆕) | Manufacturing Bill of Materials (MBOM) compiler | `BuildPromptContract` (hash-locked) |
-| **Execution Planner** | Micro-execution decomposition (max 5-batch size) | Execution plan |
+| **Execution Planner** (Hardened 🆕) | Factory Line Controller - deterministic task sequencing | `ExecutionPlanContract` (hash-locked) |
 | **Forge Implementer** | Pure execution engine (5 precondition gates) | Working code |
 | **Completion Auditor** | Verifies build completion (5 decision rules) | Audit report |
 
@@ -207,6 +207,19 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 - **Context Isolation**: Only reads hash-approved artifacts (status='approved' AND hash != null)
 - **Determinism**: Same inputs → same contractHash (SHA-256)
 - **Build Ledger**: Tracks file ownership to prevent conflicts
+- **Public API**: `start()`, `approve()`, `reject()`, `generateNext()`
+- **Status**: 10/10 constitutional tests passing
+
+**Execution Planner Hardened (NEW - Jan 13, 2026)** 🆕:
+- **Authority**: EXECUTION_PLANNING_AUTHORITY
+- **Purpose**: Factory Line Controller - converts BuildPromptContracts to sequential task plans
+- **Contract Schema**: `ExecutionPlanContract` with deterministic task ordering
+- **11 Forbidden Actions**: writeCode, modifyCode, combineSteps, reorderSteps, optimizeTaskFlow, etc.
+- **5 Allowed Actions**: generateExecutionPlan, validatePlanContract, trackTaskDependencies, emitEvents, pauseForApproval
+- **Context Isolation**: Only reads hash-approved BuildPrompts and ProjectRuleSets
+- **Determinism**: Same BuildPrompt → same ExecutionPlan → same contractHash
+- **Task Sequencing**: Dependencies → File Creates (alphabetical) → File Modifies (alphabetical)
+- **Validation**: Cycle detection (Kahn's algorithm), dependency validation, sequential task IDs
 - **Public API**: `start()`, `approve()`, `reject()`, `generateNext()`
 - **Status**: 10/10 constitutional tests passing
 
@@ -253,6 +266,8 @@ Mockups (SHA-256)
 Project Rules (SHA-256)
   ↓
 Build Prompt Contracts (SHA-256) ← NEW: contractHash + contractJson
+  ↓
+Execution Plan Contracts (SHA-256) ← NEW: contractHash + contractJson + buildPromptHash
   ↓
 Working Code ✅
 ```

@@ -567,9 +567,15 @@ model ExecutionPlan {
   id            String   @id
   appRequestId  String
   buildPromptId String
-  status        String   // "pending" | "approved" | "rejected"
+  status        String   // "awaiting_approval" | "approved" | "rejected"
   createdAt     DateTime @default(now())
   approvedAt    DateTime?
+
+  // Production Hardening (2026-01-13)
+  contractHash    String? // SHA-256 hash of ExecutionPlanContract
+  contractJson    String? // Full contract for immutability
+  approvedBy      String? // "human" or username
+  buildPromptHash String? // Reference to approved BuildPrompt (hash-chain)
 
   appRequest    AppRequest      @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
   units         ExecutionUnit[]
@@ -577,6 +583,7 @@ model ExecutionPlan {
   @@index([appRequestId])
   @@index([buildPromptId])
   @@index([status])
+  @@index([contractHash])
 }
 
 model ExecutionUnit {
