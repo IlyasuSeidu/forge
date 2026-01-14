@@ -1091,21 +1091,33 @@ Each project gets its own isolated directory:
 
 Comprehensive documentation in `/docs`:
 
+### Constitutional Agents & Core System
 - [**CONSTITUTIONAL_AUDIT_REPORT.md**](CONSTITUTIONAL_AUDIT_REPORT.md) - Final audit certifying production readiness 🆕
 - [**REPAIR_AGENT_HARDENED.md**](docs/REPAIR_AGENT_HARDENED.md) - Repair Agent specification 🆕
 - [**AGENT-TAXONOMY.md**](docs/AGENT-TAXONOMY.md) - Complete 17-agent framework & tier system
 - [**INVARIANTS.md**](docs/INVARIANTS.md) - Phase 10 frozen guarantees
+- [**FORGE-CONDUCTOR-IMPLEMENTATION.md**](docs/FORGE-CONDUCTOR-IMPLEMENTATION.md) - State machine orchestrator
+
+### Visual Intelligence Pipeline
 - [**VISUAL_RENDERING_AUTHORITY.md**](VISUAL_RENDERING_AUTHORITY.md) - VRA specification
 - [**DETERMINISTIC_VISUAL_NORMALIZER.md**](DETERMINISTIC_VISUAL_NORMALIZER.md) - DVNL specification
 - [**VISUAL_FORGE_HARDENED.md**](VISUAL_FORGE_HARDENED.md) - Visual Forge upgrades
-- [**FORGE-CONDUCTOR-IMPLEMENTATION.md**](docs/FORGE-CONDUCTOR-IMPLEMENTATION.md) - State machine orchestrator
-- [**BUILD_PROMPT_ENGINEER_HARDENED.md**](docs/BUILD_PROMPT_ENGINEER_HARDENED.md) - MBOM constitutional authority (NEW) 🆕
+
+### Manufacturing & Execution
+- [**BUILD_PROMPT_ENGINEER_HARDENED.md**](docs/BUILD_PROMPT_ENGINEER_HARDENED.md) - MBOM constitutional authority 🆕
 - [**BUILD_PROMPT_EXECUTION_CONTRACT.md**](docs/BUILD_PROMPT_EXECUTION_CONTRACT.md) - Build prompt engineering (Legacy)
-- [**VERIFICATION_EXECUTOR_HARDENED.md**](docs/VERIFICATION_EXECUTOR_HARDENED.md) - Adversarial truth engine (NEW) 🆕
-- [**VERIFICATION_REPORT_GENERATOR_HARDENED.md**](docs/VERIFICATION_REPORT_GENERATOR_HARDENED.md) - Pure projection report generator (NEW) 🆕
-- [**COMPLETION_AUDITOR.md**](docs/COMPLETION_AUDITOR.md) - Quality auditing
 - [**EXECUTION_PLANNER.md**](docs/EXECUTION_PLANNER.md) - Micro-execution decomposition
 - [**FORGE_IMPLEMENTER.md**](docs/FORGE_IMPLEMENTER.md) - Code implementation
+
+### Verification & Quality Assurance
+- [**VERIFICATION_EXECUTOR_HARDENED.md**](docs/VERIFICATION_EXECUTOR_HARDENED.md) - Adversarial truth engine 🆕
+- [**VERIFICATION_REPORT_GENERATOR_HARDENED.md**](docs/VERIFICATION_REPORT_GENERATOR_HARDENED.md) - Pure projection report generator 🆕
+- [**COMPLETION_AUDITOR.md**](docs/COMPLETION_AUDITOR.md) - Quality auditing
+
+### Framework Assembly Layer (NEW - Jan 14, 2026) 🆕
+- [**FRAMEWORK_ASSEMBLY_NEXTJS.md**](docs/FRAMEWORK_ASSEMBLY_NEXTJS.md) - Next.js Pack deterministic manufacturing jig
+
+### Testing & Deployment
 - [**E2E-TESTING-GUIDE.md**](docs/E2E-TESTING-GUIDE.md) - End-to-end testing
 - [**GETTING_STARTED.md**](GETTING_STARTED.md) - Quick start guide
 - [**DEPLOY.md**](DEPLOY.md) - Deployment instructions
