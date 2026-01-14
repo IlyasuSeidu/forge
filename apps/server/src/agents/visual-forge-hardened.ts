@@ -701,7 +701,7 @@ export class VisualForgeHardened {
         );
       }
 
-      const allowedScreens: string[] = JSON.parse(screenIndexRecord.screens).map((s: any) => s.name);
+      const allowedScreens: string[] = JSON.parse(screenIndexRecord.screens);
 
       // Canonicalize screen name FIRST (fail fast on unknown screens)
       const canonicalScreenName = this.canonicalizeScreenName(screenName, allowedScreens);
@@ -802,11 +802,10 @@ export class VisualForgeHardened {
           appRequestId,
           screenName: canonicalScreenName,
           layoutType,
-          mockupPath: screenshotResult.screenshotPath,
+          imagePath: screenshotResult.screenshotPath,
           imageHash: screenshotResult.imageHash,
           mockupHash,
-          modelUsed: 'vcra-playwright', // Mark as VCRA-rendered
-          promptHash: vcraContract.codeHash, // Use code hash as "prompt" hash
+          promptMetadata: JSON.stringify({ vcraContractId, codeHash: vcraContract.codeHash }),
           status: 'awaiting_approval',
         },
       });

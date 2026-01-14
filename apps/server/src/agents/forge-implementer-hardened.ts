@@ -20,8 +20,9 @@ import { PrismaClient } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
 import { ForgeConductor } from '../conductor/forge-conductor.js';
 import { createHash, randomUUID } from 'crypto';
-import { readFile, writeFile, access } from 'fs/promises';
+import { readFile, writeFile, access, mkdir } from 'fs/promises';
 import { constants } from 'fs';
+import { dirname } from 'path';
 
 /**
  * PROMPT ENVELOPE
@@ -359,6 +360,10 @@ export class ForgeImplementerHardened {
       }
       // File doesn't exist - good, we can create it
     }
+
+    // Create parent directories if they don't exist
+    const parentDir = dirname(filePath);
+    await mkdir(parentDir, { recursive: true });
 
     // For now, create an empty file
     // In production, this would use the instruction from BuildPrompt
