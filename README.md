@@ -10,7 +10,7 @@
 
 ## 🚀 What is Forge?
 
-Forge is a **production-grade system** that transforms natural-language ideas into fully built, verified applications using a specialized assembly line of 15 AI agents.
+Forge is a **production-grade system** that transforms natural-language ideas into fully built, verified applications using a specialized assembly line of 17 AI agents.
 
 Unlike other AI code generators that ship broken code silently, Forge **guarantees quality** through:
 - ✅ **Production-ready mockups** via VCRA + Playwright (perfect text rendering, real code)
@@ -24,7 +24,7 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 
 ## 📊 Current Status
 
-**Production-Grade 15-Agent Assembly Line** (Updated: January 13, 2026)
+**Production-Grade 17-Agent Assembly Line** (Updated: January 14, 2026)
 
 ### ⚡ Recent Transformations (Jan 10-13, 2026)
 
@@ -52,16 +52,25 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 - ✅ 10/10 test pass rate across all hardened agents
 - ✅ Production-ready code for implementation (40-60% time savings)
 
-#### **Day 4: Phase 10 Constitutional Hardening** (Jan 13) 🆕
+#### **Day 4: Phase 10 Constitutional Hardening** (Jan 13)
 - ✅ **Verification Executor Hardened (Tier 5.0)** - Adversarial truth engine with ZERO intelligence
 - ✅ **Verification Report Generator Hardened (Tier 5.5)** - Pure projection with ZERO judgment
-- ✅ **Repair Agent Hardened (Tier 6)** - Corrective execution (schema only)
 - ✅ Completion Auditor integration with VerificationResult evidence
 - ✅ E2E test with real verification (not simulated)
 - ✅ Full hash chain: Rules → BuildPrompt → ExecutionPlan → ExecutionLog → VerificationResult → CompletionReport
 - ✅ 10/10 constitutional tests for Verification Executor
 - ✅ 10/10 constitutional tests for Verification Report Generator
-- ✅ **15-agent assembly line complete** (was 12)
+
+#### **Day 5: Phase 10 Complete + Constitutional Audit** (Jan 14) 🆕
+- ✅ **Repair Plan Generator** - Human-in-the-loop decision support (ZERO autonomous code generation)
+- ✅ **Repair Agent Hardened (Tier 5.75)** - Bounded repair executor with constitutional safety
+- ✅ **Phase 10 Constitutional Loop Test** - End-to-end validation PASSING (all 8 steps)
+- ✅ **Constitutional Audit Framework** - Comprehensive validation of all 17 agents
+- ✅ **AUDIT VERDICT: FORGE IS CONSTITUTIONALLY SOUND** - Ready for productization
+- ✅ 10/10 constitutional tests for Repair Agent Hardened
+- ✅ Complete hash chain verified: Base Prompt → ... → Repair Execution → Re-verification → Completion
+- ✅ Critical safety invariant proven: Even malicious LLM plugged in = system remains safe
+- ✅ **17-agent assembly line complete and production-ready**
 
 ### 🎯 What's Fully Implemented
 
@@ -72,13 +81,13 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 - ✅ Workspace isolation with path validation
 - ✅ Complete audit trail via event logging
 
-**15-Agent Assembly Line:**
+**17-Agent Assembly Line:**
 - ✅ **Tier 1**: Foundry Architect + Synthetic Founder
 - ✅ **Tier 2**: Product Strategist + Screen Cartographer + Journey Orchestrator
 - ✅ **Tier 3**: Visual Rendering Authority + DVNL + VCA + VCRA + Visual Forge + Constraint Compiler
 - ✅ **Tier 4**: Build Prompt Engineer + Execution Planner + Forge Implementer + Completion Auditor
-- ✅ **Tier 5**: Verification Executor + Verification Report Generator + Forge Conductor
-- ✅ **Tier 6**: Repair Agent (schema only)
+- ✅ **Tier 5**: Verification Executor + Verification Report Generator + Repair Plan Generator + Repair Agent + Forge Conductor
+- ✅ All agents constitutionally validated ✅ Production-ready
 
 **AI Integrations:**
 - ✅ Claude Sonnet 4.5 (code generation + VCRA code generation)
@@ -123,7 +132,7 @@ Unlike other AI code generators that ship broken code silently, Forge **guarante
 
 ---
 
-## 🏗️ The 15-Agent Assembly Line
+## 🏗️ The 17-Agent Assembly Line
 
 Forge uses **specialized agents** organized in a 6-tier hierarchy. Each agent has a single, non-overlapping mandate.
 
@@ -264,12 +273,14 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 
 ---
 
-### **Tier 5: Verification & Coordination** (Control)
+### **Tier 5: Verification & Completion** (Quality Assurance)
 
 | Agent | Role | Output |
 |-------|------|--------|
-| **Verification Executor** (Hardened 🆕) | Adversarial truth engine - mechanical verification | `VerificationResult` (hash-locked) |
-| **Verification Report Generator** (Hardened 🆕) | Pure projection - human-readable reports | `VerificationReport` (hash-locked) |
+| **Verification Executor** (Hardened ✅) | Adversarial truth engine - mechanical verification | `VerificationResult` (hash-locked) |
+| **Verification Report Generator** (Hardened ✅) | Pure projection - human-readable reports | `VerificationReport` (hash-locked) |
+| **Repair Plan Generator** (Hardened ✅) | Decision support - proposes repair options (no autonomous fixes) | `DraftRepairPlan` (unapproved) |
+| **Repair Agent** (Hardened ✅) | Bounded repair executor - executes ONLY human-approved repairs | `RepairExecutionLog` (hash-locked) |
 | **Forge Conductor** | State machine orchestrator - enforces "one agent at a time" rule | State transitions |
 
 **Verification Executor Hardened (NEW - Jan 13, 2026)** 🆕:
@@ -301,31 +312,40 @@ WHAT  HOW MUCH  COMPOSED  CODE      PIXELS
 - **Public API**: `generate(appRequestId)`
 - **Status**: 10/10 constitutional tests passing
 
+**Repair Plan Generator (Jan 14, 2026)** ✅:
+- **Authority**: REPAIR_PLANNING_AUTHORITY
+- **Purpose**: Decision support agent that proposes repair options (NOT execution)
+- **Intelligence Level**: ADVISORY (can propose solutions but cannot execute)
+- **Key Principle**: Generates multiple repair options for human selection
+- **21 Forbidden Actions**: executeRepair, modifyCode, autoFix, retryWithoutApproval, etc.
+- **Output**: DraftRepairPlan with candidate repairs (status='unapproved', NOT executable)
+- **Human Gate**: ALWAYS requires explicit human selection before execution
+- **Status**: Fully integrated with Phase 10 closed-loop ✅
+
+**Repair Agent Hardened (Jan 14, 2026)** ✅:
+- **Authority**: REPAIR_EXECUTION_AUTHORITY (Tier 5.75)
+- **Purpose**: Bounded repair executor - executes ONLY human-approved RepairPlan actions
+- **Intelligence Level**: ZERO (mechanical execution only, NO creative problem-solving)
+- **Autonomy Level**: ZERO (no decisions, no interpretations, no suggestions)
+- **Philosophy**: "The Repair Agent is a torque wrench, not a mechanic."
+- **21 Forbidden Actions**: generateCode, suggestFixes, retryOnFailure, modifyScope, etc.
+- **8 Allowed Actions**: readApprovedRepairPlan, validatePreconditions, executeAction, etc.
+- **RepairAction Contract**: Three operation types (replace_content, replace_lines, append)
+- **Safety Guarantees**:
+  - All inputs hash-locked and human-approved
+  - Halts immediately on ANY violation
+  - No retry or recovery logic
+  - No rollback capability
+- **Critical Safety Invariant**: Even malicious/buggy LLM plugged in = system stays safe
+- **Test Results**: 10/10 constitutional tests PASSING
+- **Phase 10 Integration**: Fully integrated and validated in end-to-end closed-loop test
+- **Status**: Production-ready ✅
+
 **Forge Conductor** (Implemented Jan 11, 2026):
 - **Purpose**: Deterministic orchestration with lock/unlock mechanism
 - **ALLOWED_TRANSITIONS**: Whitelist enforcing single-agent-at-a-time execution
 - **Methods**: `pauseForHuman()`, `lock()`, `unlock()` for human approval gates
 - **Guarantees**: No parallel execution, no skipped steps, complete dependency tracking
-
----
-
-### **Tier 6: Repair & Recovery** (Corrective Execution) 🆕
-
-| Agent | Role | Status |
-|-------|------|--------|
-| **Repair Agent** (Hardened 🆕) | Corrective executor - fixes verification failures | Schema only (implementation pending) |
-
-**Repair Agent Hardened (SCHEMA ONLY - Jan 13, 2026)** 🆕:
-- **Authority**: REPAIR_EXECUTION_AUTHORITY
-- **Purpose**: Execute bounded corrective actions when verification fails (max 5 attempts)
-- **Intelligence Level**: ZERO (no creative problem-solving)
-- **Database Models**: `RepairPlan` (hash-locked) + `RepairExecutionLog` (immutable)
-- **Constitutional Constraints**:
-  - Maximum 5 repair attempts per verification failure
-  - Must re-verify after each repair
-  - Can only modify files from approved scope
-  - No loops, no interpretation, no optimization
-- **Status**: Database schemas implemented, agent implementation pending
 
 ---
 
@@ -491,16 +511,19 @@ Verification rules may only be **strengthened** (more checks, stricter rules) or
 
 ---
 
-## 📈 Performance Metrics (January 13, 2026)
+## 📈 Performance Metrics (January 14, 2026)
 
 ### Agent Test Coverage
 - **All Hardened Agents**: 10/10 test pass rate
+- **Repair Agent Hardened**: 10/10 constitutional tests ✅ 🆕
+- **Phase 10 Closed-Loop**: All 8 steps PASSING ✅ 🆕
+- **Constitutional Audit**: 17/17 agents validated ✅ 🆕
 - **Visual Rendering Authority**: 10/10 with real Claude API
-- **Deterministic Visual Normalizer**: 10/10 with real Claude API 🆕
+- **Deterministic Visual Normalizer**: 10/10 with real Claude API
 - **Visual Forge**: 10/10 production hardening tests
 - **Journey Orchestrator**: 10/10 determinism tests
-- **Verification Executor**: 10/10 constitutional tests 🆕
-- **Verification Report Generator**: 10/10 constitutional tests 🆕
+- **Verification Executor**: 10/10 constitutional tests
+- **Verification Report Generator**: 10/10 constitutional tests
 
 ### Image Generation Performance
 - **Model**: GPT Image 1.5 (primary)
@@ -1068,10 +1091,12 @@ Each project gets its own isolated directory:
 
 Comprehensive documentation in `/docs`:
 
-- [**AGENT-TAXONOMY.md**](docs/AGENT-TAXONOMY.md) - Complete 12-agent framework & tier system
+- [**CONSTITUTIONAL_AUDIT_REPORT.md**](CONSTITUTIONAL_AUDIT_REPORT.md) - Final audit certifying production readiness 🆕
+- [**REPAIR_AGENT_HARDENED.md**](docs/REPAIR_AGENT_HARDENED.md) - Repair Agent specification 🆕
+- [**AGENT-TAXONOMY.md**](docs/AGENT-TAXONOMY.md) - Complete 17-agent framework & tier system
 - [**INVARIANTS.md**](docs/INVARIANTS.md) - Phase 10 frozen guarantees
 - [**VISUAL_RENDERING_AUTHORITY.md**](VISUAL_RENDERING_AUTHORITY.md) - VRA specification
-- [**DETERMINISTIC_VISUAL_NORMALIZER.md**](DETERMINISTIC_VISUAL_NORMALIZER.md) - DVNL specification 🆕
+- [**DETERMINISTIC_VISUAL_NORMALIZER.md**](DETERMINISTIC_VISUAL_NORMALIZER.md) - DVNL specification
 - [**VISUAL_FORGE_HARDENED.md**](VISUAL_FORGE_HARDENED.md) - Visual Forge upgrades
 - [**FORGE-CONDUCTOR-IMPLEMENTATION.md**](docs/FORGE-CONDUCTOR-IMPLEMENTATION.md) - State machine orchestrator
 - [**BUILD_PROMPT_ENGINEER_HARDENED.md**](docs/BUILD_PROMPT_ENGINEER_HARDENED.md) - MBOM constitutional authority (NEW) 🆕
