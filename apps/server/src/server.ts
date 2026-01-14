@@ -16,6 +16,7 @@ import { executionRoutes } from './routes/executions.js';
 import { artifactRoutes } from './routes/artifacts.js';
 import { approvalRoutes } from './routes/approvals.js';
 import { appRequestRoutes } from './routes/app-requests.js';
+import { previewRoutes } from './routes/preview.js';
 
 /**
  * Creates and configures the Fastify server instance
@@ -143,6 +144,11 @@ export async function createServer() {
   await fastify.register(
     async (instance) =>
       appRequestRoutes(instance, projectService, appRequestService, verificationService),
+    { prefix: '/api' }
+  );
+  await fastify.register(
+    async (instance) =>
+      previewRoutes(instance, executionService.getPrismaClient(), fastify.log),
     { prefix: '/api' }
   );
 
