@@ -1114,8 +1114,11 @@ Comprehensive documentation in `/docs`:
 - [**VERIFICATION_REPORT_GENERATOR_HARDENED.md**](docs/VERIFICATION_REPORT_GENERATOR_HARDENED.md) - Pure projection report generator 🆕
 - [**COMPLETION_AUDITOR.md**](docs/COMPLETION_AUDITOR.md) - Quality auditing
 
-### Framework Assembly Layer (NEW - Jan 14, 2026) 🆕
+### Framework Assembly Layer (Jan 14, 2026) 🆕
 - [**FRAMEWORK_ASSEMBLY_NEXTJS.md**](docs/FRAMEWORK_ASSEMBLY_NEXTJS.md) - Next.js Pack deterministic manufacturing jig
+
+### Preview Runtime (NEW - Jan 14, 2026) 🆕
+- [**PREVIEW_RUNTIME_ARCHITECTURE.md**](docs/PREVIEW_RUNTIME_ARCHITECTURE.md) - Mechanical execution chamber for running assembled apps
 
 ### Testing & Deployment
 - [**E2E-TESTING-GUIDE.md**](docs/E2E-TESTING-GUIDE.md) - End-to-end testing
