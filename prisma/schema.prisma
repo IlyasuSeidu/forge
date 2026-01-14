@@ -138,6 +138,8 @@ model AppRequest {
   buildPrompts       BuildPrompt[]
   executionPlans     ExecutionPlan[]
   completionDecisions CompletionDecision[]
+  frameworkManifests FrameworkAssemblyManifest[]
+  previewSessions    PreviewRuntimeSession[]
 
   @@index([projectId])
   @@index([status])
@@ -777,4 +779,107 @@ model RepairExecutionLog {
   @@index([overallStatus])
   @@index([executionLogHash])
   @@index([repairPlanHash])
+}
+
+// ============================================================================
+// FRAMEWORK ASSEMBLY LAYER (Added 2026-01-14)
+// ============================================================================
+
+/**
+ * Framework Assembly Manifest
+ *
+ * Output from Framework Assembly Layer (Next.js Pack).
+ * Hash-locked manifest of assembled Next.js application.
+ */
+model FrameworkAssemblyManifest {
+  id                String   @id // UUID
+  appRequestId      String
+  framework         String   // "nextjs"
+  frameworkVersion  String   // e.g., "14.2.0"
+  outputDir         String   // Absolute path to nextjs-app/
+
+  // Manifest data (JSON serialized)
+  manifestJson      String   // Full manifest for immutability
+
+  // Hash-locking (SHA-256)
+  manifestHash      String   @unique // Deterministic hash
+  executionLogHash  String   // Reference to Forge Implementer output
+
+  // Metadata
+  createdAt         DateTime @default(now())
+
+  appRequest        AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([manifestHash])
+  @@index([executionLogHash])
+}
+
+// ============================================================================
+// PREVIEW RUNTIME (Added 2026-01-14)
+// ============================================================================
+
+/**
+ * Preview Runtime Session
+ *
+ * Mechanical execution chamber for running Forge-assembled applications.
+ * ZERO intelligence, ZERO autonomy.
+ *
+ * Philosophy: Run → Observe → Destroy
+ */
+model PreviewRuntimeSession {
+  id                String   @id // UUID
+  appRequestId      String
+  framework         String   // "nextjs" (only option in v1.0)
+  frameworkVersion  String   // e.g., "14.2.0"
+
+  // Hash references (audit trail)
+  manifestHash      String   // Reference to Framework Assembly manifest
+  workspaceHash     String   // SHA-256 of workspace directory
+
+  // Execution state
+  status            String   // "READY" | "STARTING" | "BUILDING" | "RUNNING" | "FAILED" | "TERMINATED"
+
+  // Container metadata
+  containerId       String?  // Docker container ID
+  port              Int?     // Mapped port (10000-20000)
+  previewUrl        String?  // http://localhost:{port}
+
+  // Lifecycle timestamps (milliseconds since epoch, stored as BigInt)
+  startedAt         BigInt   // When STARTING began
+  runningAt         BigInt?  // When RUNNING began (null if never reached)
+  terminatedAt      BigInt?  // When TERMINATED/FAILED
+
+  // Failure metadata (null if successful)
+  failureStage      String?  // "install" | "build" | "start" | "timeout" | "crash"
+  failureOutput     String?  // Raw stderr/stdout (NO interpretation)
+
+  // Execution outputs (raw command results)
+  installStdout     String?
+  installStderr     String?
+  installExitCode   Int?
+  installDurationMs BigInt?
+
+  buildStdout       String?
+  buildStderr       String?
+  buildExitCode     Int?
+  buildDurationMs   BigInt?
+
+  startStdout       String?
+  startStderr       String?
+  startExitCode     Int?
+  startDurationMs   BigInt?
+
+  // Hash-locking (SHA-256, deterministic)
+  sessionHash       String   @unique // Excludes timestamps, sessionId
+
+  // Metadata
+  createdAt         DateTime @default(now())
+
+  appRequest        AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([status])
+  @@index([sessionHash])
+  @@index([manifestHash])
 }
