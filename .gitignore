@@ -51,3 +51,14 @@ temp/
 # Generated workspaces (user projects)
 workspaces/*
 !workspaces/README.md
+
+# Generated mockup files (test artifacts)
+apps/server/mockups/*.html
+apps/server/mockups/*.png
+mockups/
+
+# Helper/test scripts (one-off utilities)
+execute-phase10-verification.ts
+extract-mockups.ts
+phase10-completion-audit.ts
+render-mockups-as-images.ts
