@@ -138,6 +138,7 @@ model AppRequest {
   buildPrompts       BuildPrompt[]
   executionPlans     ExecutionPlan[]
   completionDecisions CompletionDecision[]
+  completionReports  CompletionReport[]
   frameworkManifests FrameworkAssemblyManifest[]
   previewSessions    PreviewRuntimeSession[]
 
@@ -708,6 +709,27 @@ model VerificationReport {
   @@index([verificationResultId])
   @@index([reportHash])
   @@index([verificationResultHash])
+}
+
+model CompletionReport {
+  id                 String   @id
+  appRequestId       String
+  verdict            String   // "COMPLETE" | "NOT_COMPLETE"
+  rulesHash          String
+  buildPromptCount   Int
+  executionPlanCount Int
+  executionLogCount  Int
+  verificationStatus String   // "passed" | "failed"
+  failureReasons     String?  // JSON array of strings (REQUIRED if NOT_COMPLETE)
+  reportHash         String   @unique // SHA-256 (excludes createdAt)
+  reportJson         String   // Full report for immutability
+  createdAt          DateTime @default(now())
+
+  appRequest         AppRequest @relation(fields: [appRequestId], references: [id], onDelete: Cascade)
+
+  @@index([appRequestId])
+  @@index([verdict])
+  @@index([reportHash])
 }
 
 // ============================================================================
