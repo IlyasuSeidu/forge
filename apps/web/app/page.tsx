@@ -13,7 +13,7 @@ const MOCK_PROJECTS = [
     name: 'Fitness Habit Tracker',
     description: 'Help users track their fitness goals and stay consistent',
     status: 'building' as const,
-    progress: 3, // Foundry Architect + Synthetic Founder + Product Strategist approved
+    progress: 4, // Foundry Architect + Synthetic Founder + Product Strategist + Screen Cartographer approved
     totalAgents: 17,
     createdAt: '2026-01-14T10:00:00Z',
   },
