@@ -207,7 +207,7 @@ export default function ScreenCartographerPage() {
           <span className="text-xs text-gray-500 font-mono">Read-Only</span>
         </div>
 
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-h-[600px] overflow-y-auto">
           <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono leading-relaxed">
             {MOCK_SCREEN_INDEX}
           </pre>
