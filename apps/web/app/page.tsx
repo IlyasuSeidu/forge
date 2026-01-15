@@ -10,10 +10,10 @@ import Link from 'next/link';
 const MOCK_PROJECTS = [
   {
     id: 'demo-project-1',
-    name: 'Fitness Tracker App',
+    name: 'Fitness Habit Tracker',
     description: 'Help users track their fitness goals and stay consistent',
     status: 'building' as const,
-    progress: 2, // Number of agents completed
+    progress: 1, // Foundry Architect approved
     totalAgents: 17,
     createdAt: '2026-01-14T10:00:00Z',
   },
