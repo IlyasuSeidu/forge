@@ -25,14 +25,14 @@ async function getProjectData(projectId: string) {
     name: 'Fitness Habit Tracker',
     status: 'building' as const,
     createdAt: new Date().toISOString(),
-    hashCount: 1, // Foundry Architect approved
-    approvalCount: 1, // 1 agent approved
+    hashCount: 2, // Foundry Architect + Synthetic Founder approved
+    approvalCount: 2, // 2 agents approved
   };
 }
 
 async function getAgentStates(projectId: string): Promise<AgentState[]> {
   // TODO: Replace with actual API call
-  // For now, return mock data showing progression: Agent 1 approved, Agent 2 awaiting approval
+  // For now, return mock data showing progression: Agents 1-2 approved, Agent 3 awaiting approval
   return [
     {
       id: 'foundry-architect',
@@ -42,9 +42,14 @@ async function getAgentStates(projectId: string): Promise<AgentState[]> {
     },
     {
       id: 'synthetic-founder',
+      status: 'approved',
+      hash: 'b9d4e1f7c3a8d2e5',
+      approvedAt: '2026-01-14T14:35:00Z',
+    },
+    {
+      id: 'product-strategist',
       status: 'awaiting_approval',
     },
-    { id: 'product-strategist', status: 'pending' },
     { id: 'screen-cartographer', status: 'pending' },
     { id: 'journey-orchestrator', status: 'pending' },
     { id: 'vra', status: 'pending' },
