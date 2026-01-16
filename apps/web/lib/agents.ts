@@ -150,13 +150,13 @@ export const AGENTS: AgentMetadata[] = [
     route: 'execution-planner',
   },
   {
-    id: 'implementation',
+    id: 'forge-implementer',
     name: 'Forge Implementer',
     tier: 4,
     tierName: 'Prompt & Execution',
     icon: '⚙️',
     description: 'Executes tasks exactly as planned (robotic executor)',
-    route: 'implementation',
+    route: 'forge-implementer',
   },
 
   // TIER 5: VERIFICATION & COMPLETION
