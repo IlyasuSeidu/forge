@@ -25,8 +25,8 @@ async function getProjectData(projectId: string) {
     name: 'Fitness Habit Tracker',
     status: 'building' as const,
     createdAt: new Date().toISOString(),
-    hashCount: 12, // 12 agents approved (up to Forge Implementer)
-    approvalCount: 12, // 12 agents approved
+    hashCount: 13, // 13 agents approved (up to Verification Executor)
+    approvalCount: 13, // 13 agents approved
   };
 }
 
@@ -106,8 +106,13 @@ async function getAgentStates(projectId: string): Promise<AgentState[]> {
       hash: 'l1m2n3o4p5q6r7s8',
       approvedAt: '2026-01-14T15:25:00Z',
     },
-    { id: 'verification-executor', status: 'awaiting_approval' },
-    { id: 'verification-report', status: 'pending' },
+    {
+      id: 'verification-executor',
+      status: 'approved',
+      hash: 'm1n2o3p4q5r6s7t8',
+      approvedAt: '2026-01-14T15:30:00Z',
+    },
+    { id: 'verification-report-generator', status: 'awaiting_approval' },
     { id: 'repair-plan', status: 'pending' },
     { id: 'repair', status: 'pending' },
     { id: 'completion', status: 'pending' },

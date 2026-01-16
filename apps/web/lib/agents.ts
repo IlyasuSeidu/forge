@@ -170,13 +170,13 @@ export const AGENTS: AgentMetadata[] = [
     route: 'verification-executor',
   },
   {
-    id: 'verification-report',
+    id: 'verification-report-generator',
     name: 'Verification Report Generator',
     tier: 5,
     tierName: 'Verification & Completion',
     icon: '📄',
     description: 'Projects verification results (no judgment)',
-    route: 'verification-report',
+    route: 'verification-report-generator',
   },
   {
     id: 'repair-plan',
