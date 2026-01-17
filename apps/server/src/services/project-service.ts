@@ -70,11 +70,6 @@ export class ProjectService {
       return null;
     }
 
-    // Get conductor state (if exists)
-    const conductorState = await prisma.conductorState.findUnique({
-      where: { projectId },
-    });
-
     // Get latest app request for this project
     const latestAppRequest = await prisma.appRequest.findFirst({
       where: { projectId },
@@ -82,6 +77,13 @@ export class ProjectService {
     });
 
     const appRequestId = latestAppRequest?.id;
+
+    // Get conductor state (if exists)
+    const conductorState = appRequestId
+      ? await prisma.conductorState.findUnique({
+          where: { appRequestId },
+        })
+      : null;
 
     // Query all agent-related tables in parallel
     const [
@@ -97,7 +99,6 @@ export class ProjectService {
       projectRuleSet,
       buildPrompts,
       executionPlans,
-      verifications,
       verificationResults,
       verificationReports,
       repairPlans,
@@ -107,10 +108,11 @@ export class ProjectService {
       approvals,
     ] = await Promise.all([
       // Agent 1: Foundry Architect
-      prisma.foundrySession.findFirst({
-        where: { projectId },
-        orderBy: { createdAt: 'desc' },
-      }),
+      appRequestId
+        ? prisma.foundrySession.findUnique({
+            where: { appRequestId },
+          })
+        : null,
       // Agent 2: Synthetic Founder
       appRequestId
         ? prisma.syntheticAnswer.findFirst({
@@ -189,21 +191,15 @@ export class ProjectService {
         : [],
       // Agents 13-14: Verification
       appRequestId
-        ? prisma.verification.findMany({
-            where: { appRequestId },
-            orderBy: { createdAt: 'desc' },
-          })
-        : [],
-      appRequestId
         ? prisma.verificationResult.findMany({
             where: { appRequestId },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { executedAt: 'desc' },
           })
         : [],
       appRequestId
         ? prisma.verificationReport.findMany({
             where: { appRequestId },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { generatedAt: 'desc' },
           })
         : [],
       // Agents 15-16: Repair
@@ -216,7 +212,7 @@ export class ProjectService {
       appRequestId
         ? prisma.repairExecutionLog.findMany({
             where: { appRequestId },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { executedAt: 'desc' },
           })
         : [],
       // Agent 17: Completion Auditor
@@ -227,10 +223,12 @@ export class ProjectService {
           })
         : [],
       // Preview sessions
-      prisma.previewRuntimeSession.findMany({
-        where: { projectId },
-        orderBy: { createdAt: 'desc' },
-      }),
+      appRequestId
+        ? prisma.previewRuntimeSession.findMany({
+            where: { appRequestId },
+            orderBy: { createdAt: 'desc' },
+          })
+        : [],
       // All approvals for this project
       prisma.approval.findMany({
         where: { projectId },
@@ -274,9 +272,9 @@ export class ProjectService {
         agentId: 'foundry-architect',
         status: getAgentStatus(
           !!foundrySession,
-          foundrySession?.sessionHash
+          foundrySession?.basePromptHash
         ),
-        artifactHash: foundrySession?.sessionHash,
+        artifactHash: foundrySession?.basePromptHash,
         inputHashes: [],
         updatedAt: foundrySession?.createdAt?.toISOString(),
       },
@@ -284,12 +282,12 @@ export class ProjectService {
         agentId: 'synthetic-founder',
         status: getAgentStatus(
           !!syntheticAnswer,
-          syntheticAnswer?.answerHash,
+          syntheticAnswer?.requestHash,
           'synthetic_answers'
         ),
-        artifactHash: syntheticAnswer?.answerHash,
-        inputHashes: foundrySession?.sessionHash
-          ? [foundrySession.sessionHash]
+        artifactHash: syntheticAnswer?.requestHash,
+        inputHashes: foundrySession?.basePromptHash
+          ? [foundrySession.basePromptHash]
           : [],
         updatedAt: syntheticAnswer?.createdAt?.toISOString(),
       },
@@ -297,12 +295,12 @@ export class ProjectService {
         agentId: 'product-strategist',
         status: getAgentStatus(
           planningDocs.length > 0,
-          planningDocs[0]?.planHash,
+          planningDocs[0]?.documentHash,
           'planning_complete'
         ),
-        artifactHash: planningDocs[0]?.planHash,
-        inputHashes: syntheticAnswer?.answerHash
-          ? [syntheticAnswer.answerHash]
+        artifactHash: planningDocs[0]?.documentHash,
+        inputHashes: syntheticAnswer?.requestHash
+          ? [syntheticAnswer.requestHash]
           : [],
         updatedAt: planningDocs[0]?.createdAt?.toISOString(),
       },
@@ -310,12 +308,12 @@ export class ProjectService {
         agentId: 'screen-cartographer',
         status: getAgentStatus(
           !!screenIndex,
-          screenIndex?.indexHash,
+          screenIndex?.screenIndexHash,
           'screen_index_complete'
         ),
-        artifactHash: screenIndex?.indexHash,
-        inputHashes: planningDocs[0]?.planHash
-          ? [planningDocs[0].planHash]
+        artifactHash: screenIndex?.screenIndexHash,
+        inputHashes: planningDocs[0]?.documentHash
+          ? [planningDocs[0].documentHash]
           : [],
         updatedAt: screenIndex?.createdAt?.toISOString(),
       },
@@ -327,7 +325,7 @@ export class ProjectService {
           'journeys_complete'
         ),
         artifactHash: userJourneys[0]?.journeyHash,
-        inputHashes: screenIndex?.indexHash ? [screenIndex.indexHash] : [],
+        inputHashes: screenIndex?.screenIndexHash ? [screenIndex.screenIndexHash] : [],
         updatedAt: userJourneys[0]?.createdAt?.toISOString(),
       },
       {
@@ -430,7 +428,7 @@ export class ProjectService {
         ),
         artifactHash: verificationResults[0]?.resultHash,
         inputHashes: [],
-        updatedAt: verificationResults[0]?.createdAt?.toISOString(),
+        updatedAt: verificationResults[0]?.executedAt?.toISOString(),
       },
       {
         agentId: 'verification-report-generator',
@@ -443,16 +441,16 @@ export class ProjectService {
         inputHashes: verificationResults[0]?.resultHash
           ? [verificationResults[0].resultHash]
           : [],
-        updatedAt: verificationReports[0]?.createdAt?.toISOString(),
+        updatedAt: verificationReports[0]?.generatedAt?.toISOString(),
       },
       {
         agentId: 'repair-plan-generator',
         status: getAgentStatus(
           repairPlans.length > 0,
-          repairPlans[0]?.planHash,
+          repairPlans[0]?.repairPlanHash,
           'repair_plan_approved'
         ),
-        artifactHash: repairPlans[0]?.planHash,
+        artifactHash: repairPlans[0]?.repairPlanHash,
         inputHashes: verificationReports[0]?.reportHash
           ? [verificationReports[0].reportHash]
           : [],
@@ -462,14 +460,14 @@ export class ProjectService {
         agentId: 'repair-agent',
         status: getAgentStatus(
           repairExecutionLogs.length > 0,
-          repairExecutionLogs[0]?.logHash,
+          repairExecutionLogs[0]?.executionLogHash,
           'repair_complete'
         ),
-        artifactHash: repairExecutionLogs[0]?.logHash,
-        inputHashes: repairPlans[0]?.planHash
-          ? [repairPlans[0].planHash]
+        artifactHash: repairExecutionLogs[0]?.executionLogHash,
+        inputHashes: repairPlans[0]?.repairPlanHash
+          ? [repairPlans[0].repairPlanHash]
           : [],
-        updatedAt: repairExecutionLogs[0]?.createdAt?.toISOString(),
+        updatedAt: repairExecutionLogs[0]?.executedAt?.toISOString(),
       },
       {
         agentId: 'completion-auditor',
@@ -496,7 +494,7 @@ export class ProjectService {
       project,
       conductorState: conductorState
         ? {
-            state: conductorState.state,
+            state: conductorState.currentStatus,
             updatedAt: conductorState.updatedAt?.toISOString(),
           }
         : null,
