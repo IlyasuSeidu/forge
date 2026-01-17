@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { validateCreateProjectInput } from '../models/index.js';
 import type { ProjectService } from '../services/index.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
+import { prisma } from '../lib/prisma.js';
 import archiver from 'archiver';
 import { access, constants } from 'fs/promises';
 import path from 'path';
@@ -81,6 +82,11 @@ export async function projectRoutes(
   /**
    * GET /api/projects/:projectId/export.zip
    * Exports project workspace as ZIP file
+   *
+   * PRECONDITIONS:
+   * - Project must exist
+   * - Latest AppRequest must have CompletionReport with verdict = COMPLETE
+   * - Workspace directory must exist
    */
   fastify.get<{ Params: { projectId: string } }>(
     '/projects/:projectId/export.zip',
@@ -93,10 +99,44 @@ export async function projectRoutes(
         throw new NotFoundError('Project', projectId);
       }
 
-      // Determine workspace directory path
-      // This should point to where Forge assembles the project
-      // For now, we'll use a placeholder path
-      const workspaceDir = path.join(process.cwd(), 'workspaces', projectId);
+      // Get latest AppRequest for this project
+      const latestAppRequest = await prisma.appRequest.findFirst({
+        where: { projectId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!latestAppRequest) {
+        reply.code(422);
+        return {
+          error: 'Export not available',
+          details: 'No app request found for this project',
+        };
+      }
+
+      // PRECONDITION CHECK: Verify CompletionReport verdict = COMPLETE
+      const completionReport = await prisma.completionReport.findFirst({
+        where: { appRequestId: latestAppRequest.id },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!completionReport) {
+        reply.code(422);
+        return {
+          error: 'Export not available',
+          details: 'No Completion Report found. Build must complete before export.',
+        };
+      }
+
+      if (completionReport.verdict !== 'COMPLETE') {
+        reply.code(422);
+        return {
+          error: 'Export not available',
+          details: `Completion verdict is ${completionReport.verdict}. Only COMPLETE builds can be exported.`,
+        };
+      }
+
+      // Determine workspace directory path (aligned with PreviewRuntime)
+      const workspaceDir = path.join('/tmp/forge-workspaces', latestAppRequest.id, 'nextjs-app');
 
       // Check if workspace exists
       try {
@@ -105,7 +145,7 @@ export async function projectRoutes(
         reply.code(404);
         return {
           error: 'Workspace not found',
-          details: `No assembled workspace found for project ${projectId}`,
+          details: `No assembled workspace found at ${workspaceDir}`,
         };
       }
 
@@ -127,8 +167,24 @@ export async function projectRoutes(
       // Pipe archive to response
       archive.pipe(reply.raw);
 
-      // Add workspace directory to archive
-      archive.directory(workspaceDir, false);
+      // Add workspace files to archive (excluding build artifacts and dependencies)
+      archive.glob('**/*', {
+        cwd: workspaceDir,
+        ignore: [
+          'node_modules/**',
+          '.next/**',
+          '.git/**',
+          '*.log',
+          'npm-debug.log*',
+          'yarn-debug.log*',
+          'yarn-error.log*',
+          '.DS_Store',
+          '.env.local',
+          '.env.development.local',
+          '.env.test.local',
+          '.env.production.local',
+        ],
+      });
 
       // Add README with project info
       const readme = `# Project: ${project.name}
