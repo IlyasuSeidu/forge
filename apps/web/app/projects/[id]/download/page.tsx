@@ -148,19 +148,33 @@ export default function DownloadPage({ params }: { params: Promise<{ id: string 
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h2 className="text-lg font-bold text-gray-900 mb-4">Export Workspace</h2>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-yellow-900">
-            Source export is not yet wired to backend. This feature will be available after backend integration.
-          </p>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <div className="flex-1">
+              <div className="font-semibold text-green-900 mb-1">Ready to Export</div>
+              <p className="text-sm text-green-900">
+                Your complete project workspace is ready for download. This is your full source code. You own it.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-3">
-          <button
-            disabled
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+          <a
+            href={`http://localhost:4000/api/projects/${projectId}/export.zip`}
+            download
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium inline-block"
           >
             Download ZIP
-          </button>
+          </a>
 
           <Link
             href={`/projects/${projectId}/completion-auditor`}
