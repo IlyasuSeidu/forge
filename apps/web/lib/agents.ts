@@ -194,7 +194,7 @@ export const AGENTS: AgentMetadata[] = [
     tierName: 'Verification & Completion',
     icon: '🛠️',
     description: 'Executes approved repairs (bounded executor)',
-    route: 'repair',
+    route: 'repair-agent',
   },
   {
     id: 'completion',

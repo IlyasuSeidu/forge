@@ -25,8 +25,8 @@ async function getProjectData(projectId: string) {
     name: 'Fitness Habit Tracker',
     status: 'building' as const,
     createdAt: new Date().toISOString(),
-    hashCount: 14, // 14 agents approved (up to Verification Report Generator)
-    approvalCount: 14, // 14 agents approved
+    hashCount: 15, // 15 agents approved (up to Repair Plan Generator)
+    approvalCount: 15, // 15 agents approved
   };
 }
 
@@ -118,8 +118,13 @@ async function getAgentStates(projectId: string): Promise<AgentState[]> {
       hash: 'n1o2p3q4r5s6t7u8',
       approvedAt: '2026-01-14T15:35:00Z',
     },
-    { id: 'repair-plan-generator', status: 'awaiting_approval' },
-    { id: 'repair', status: 'pending' },
+    {
+      id: 'repair-plan-generator',
+      status: 'approved',
+      hash: 'o1p2q3r4s5t6u7v8',
+      approvedAt: '2026-01-14T15:40:00Z',
+    },
+    { id: 'repair', status: 'awaiting_approval' },
     { id: 'completion', status: 'pending' },
   ];
 }

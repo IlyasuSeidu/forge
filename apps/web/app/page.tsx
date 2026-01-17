@@ -13,7 +13,7 @@ const MOCK_PROJECTS = [
     name: 'Fitness Habit Tracker',
     description: 'Help users track their fitness goals and stay consistent',
     status: 'building' as const,
-    progress: 14, // 14 agents approved (up to Verification Report Generator)
+    progress: 15, // 15 agents approved (up to Repair Plan Generator)
     totalAgents: 17,
     createdAt: '2026-01-14T10:00:00Z',
   },
