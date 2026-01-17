@@ -63,7 +63,7 @@ export async function projectRoutes(
    * Exports project workspace as ZIP file
    */
   fastify.get<{ Params: { projectId: string } }>(
-    '/api/projects/:projectId/export.zip',
+    '/projects/:projectId/export.zip',
     async (request, reply) => {
       const { projectId } = request.params;
 

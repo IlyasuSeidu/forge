@@ -32,7 +32,7 @@ export async function previewRoutes(
    * Body: { appRequestId: string }
    * Returns: { sessionId: string, message: string }
    */
-  fastify.post('/api/preview/start', async (request, reply) => {
+  fastify.post('/preview/start', async (request, reply) => {
     const { appRequestId } = request.body as { appRequestId: string };
 
     if (!appRequestId) {
@@ -83,7 +83,7 @@ export async function previewRoutes(
    *   failureOutput: string | null
    * }
    */
-  fastify.get('/api/preview/status/:sessionId', async (request, reply) => {
+  fastify.get('/preview/status/:sessionId', async (request, reply) => {
     const { sessionId } = request.params as { sessionId: string };
 
     try {
@@ -112,7 +112,7 @@ export async function previewRoutes(
    *
    * Returns: { message: string }
    */
-  fastify.post('/api/preview/terminate/:sessionId', async (request, reply) => {
+  fastify.post('/preview/terminate/:sessionId', async (request, reply) => {
     const { sessionId } = request.params as { sessionId: string };
 
     try {
