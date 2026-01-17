@@ -1,16 +1,64 @@
 /**
- * Download Source Code (Placeholder)
+ * Download Source Code
  *
- * Will export the complete project workspace as a ZIP file.
+ * Export the complete project workspace as a ZIP file.
+ * Gated by CompletionReport verdict = COMPLETE.
  */
 
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getProjectState, triggerProjectDownload, type ProjectState } from '@/lib/api/project-state';
 
 export default function DownloadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+
+  const [projectState, setProjectState] = useState<ProjectState | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+
+  // Fetch project state to check capabilities
+  useEffect(() => {
+    async function fetchState() {
+      try {
+        const state = await getProjectState(projectId);
+        setProjectState(state);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('Failed to load project state');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchState();
+  }, [projectId]);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    setError(null);
+    setDownloadSuccess(false);
+
+    try {
+      await triggerProjectDownload(projectId, projectState?.project.name);
+      setDownloadSuccess(true);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Download failed');
+      }
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const canDownload = projectState?.capabilities.canDownload ?? false;
 
   return (
     <div className="space-y-6">
@@ -148,33 +196,111 @@ export default function DownloadPage({ params }: { params: Promise<{ id: string 
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h2 className="text-lg font-bold text-gray-900 mb-4">Export Workspace</h2>
 
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-          <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <div className="flex-1">
-              <div className="font-semibold text-green-900 mb-1">Ready to Export</div>
-              <p className="text-sm text-green-900">
-                Your complete project workspace is ready for download. This is your full source code. You own it.
-              </p>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full" />
+              <div className="text-sm text-gray-700">Checking export availability...</div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Not Available */}
+        {!isLoading && !canDownload && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+              <div className="flex-1">
+                <div className="font-semibold text-yellow-900 mb-1">Export Not Available</div>
+                <p className="text-sm text-yellow-900">
+                  The project must have a CompletionReport with verdict = COMPLETE before export is available.
+                  Complete all agent steps and verification first.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ready to Export */}
+        {!isLoading && canDownload && !downloadSuccess && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex-1">
+                <div className="font-semibold text-green-900 mb-1">Ready to Export</div>
+                <p className="text-sm text-green-900">
+                  Your complete project workspace is ready for download. This is your full source code. You own it.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {downloadSuccess && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex-1">
+                <div className="font-semibold text-blue-900 mb-1">Download Started</div>
+                <p className="text-sm text-blue-900">
+                  Your ZIP file should begin downloading shortly. Check your browser&apos;s download manager.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex-1">
+                <div className="font-semibold text-red-900 mb-1">Download Failed</div>
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-3">
-          <a
-            href={`http://localhost:4000/api/projects/${projectId}/export.zip`}
-            download
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium inline-block"
+          <button
+            onClick={handleDownload}
+            disabled={!canDownload || isDownloading || isLoading}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
           >
-            Download ZIP
-          </a>
+            {isDownloading ? 'Downloading...' : 'Download ZIP'}
+          </button>
 
           <Link
             href={`/projects/${projectId}/completion-auditor`}
