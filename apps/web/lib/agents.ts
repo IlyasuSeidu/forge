@@ -179,13 +179,13 @@ export const AGENTS: AgentMetadata[] = [
     route: 'verification-report-generator',
   },
   {
-    id: 'repair-plan',
+    id: 'repair-plan-generator',
     name: 'Repair Plan Generator',
     tier: 5,
     tierName: 'Verification & Completion',
     icon: '🔧',
     description: 'Proposes repair options (human selects)',
-    route: 'repair-plan',
+    route: 'repair-plan-generator',
   },
   {
     id: 'repair',
