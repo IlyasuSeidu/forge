@@ -524,7 +524,7 @@ export default function BuildPromptEngineerPage() {
                         <span className="text-xs font-medium text-gray-600 w-40 flex-shrink-0">
                           Must Follow Rules:
                         </span>
-                        <HashBadge hash={contract.constraints.mustFollowRulesHash} size="xs" />
+                        <HashBadge hash={contract.constraints.mustFollowRulesHash} size="sm" />
                       </div>
 
                       {contract.constraints.mustMatchScreens.length > 0 && (
@@ -615,7 +615,7 @@ export default function BuildPromptEngineerPage() {
                         This build prompt is hash-locked and immutable. Any deviation is a contract violation.
                       </p>
                       {isLocked && contract.contractHash && (
-                        <HashBadge hash={contract.contractHash} size="xs" />
+                        <HashBadge hash={contract.contractHash} size="sm" />
                       )}
                     </div>
                   </div>
