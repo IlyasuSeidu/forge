@@ -7,9 +7,11 @@
 
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AGENTS, AgentState, getAgentByRoute } from '@/lib/agents';
 import { AgentCard } from './AgentCard';
+import { getFirstIncompleteAgent } from '@/lib/agentProgress';
 
 interface AgentTimelineProps {
   projectId: string;
@@ -29,6 +31,10 @@ export function AgentTimeline({ projectId, agentStates }: AgentTimelineProps) {
     return acc;
   }, {} as Record<number, typeof AGENTS>);
 
+  // Get first incomplete agent for Resume Journey button
+  const firstIncomplete = getFirstIncompleteAgent(agentStates);
+  const allComplete = !firstIncomplete;
+
   return (
     <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto flex-shrink-0">
       <div className="p-4">
@@ -40,6 +46,25 @@ export function AgentTimeline({ projectId, agentStates }: AgentTimelineProps) {
 
         {/* Progress Summary */}
         <ProgressSummary agentStates={agentStates} />
+
+        {/* Resume Journey Button */}
+        <div className="mt-4">
+          {allComplete ? (
+            <Link
+              href={`/projects/${projectId}/preview`}
+              className="block w-full text-center px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-semibold transition-all shadow-sm"
+            >
+              🎉 Preview Your App
+            </Link>
+          ) : (
+            <Link
+              href={`/projects/${projectId}/${AGENTS.find((a) => a.id === firstIncomplete?.id)?.route || 'foundry-architect'}`}
+              className="block w-full text-center px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-semibold transition-all shadow-sm"
+            >
+              → Resume Journey
+            </Link>
+          )}
+        </div>
 
         {/* Agents by Tier */}
         <div className="space-y-6 mt-6">
@@ -69,6 +94,7 @@ export function AgentTimeline({ projectId, agentStates }: AgentTimelineProps) {
                         state={state}
                         projectId={projectId}
                         isActive={currentAgent?.id === agent.id}
+                        allAgentStates={agentStates}
                       />
                     );
                   })}
