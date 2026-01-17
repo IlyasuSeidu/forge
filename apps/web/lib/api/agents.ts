@@ -9,106 +9,82 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/a
 
 /**
  * Foundry Architect - Get session with answers
- * TODO: Backend endpoint does not exist yet. Database model exists.
- * Needed: GET /api/projects/:id/foundry-sessions/latest
+ * Backend endpoint: GET /api/app-requests/:appRequestId/foundry-session
  */
-export async function getFoundrySession(projectId: string, sessionId?: string) {
-  // TODO: Uncomment when backend endpoint is available
-  // const url = sessionId
-  //   ? `${API_BASE_URL}/projects/${projectId}/foundry-sessions/${sessionId}`
-  //   : `${API_BASE_URL}/projects/${projectId}/foundry-sessions/latest`;
-  // const response = await fetch(url);
-  // if (!response.ok) {
-  //   if (response.status === 404) return null;
-  //   throw new Error(`Failed to fetch foundry session: ${response.statusText}`);
-  // }
-  // return response.json();
+export async function getFoundrySession(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/foundry-session`);
 
-  console.warn('getFoundrySession: Backend endpoint does not exist yet');
-  return null;
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error(`Failed to fetch foundry session: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.session || null;
 }
 
 /**
  * Synthetic Founder - Get answers/base prompt
- * TODO: Backend endpoint does not exist yet. Database model (SyntheticAnswer) exists.
- * Needed: GET /api/projects/:id/app-requests/:appRequestId/synthetic-answers
+ * Backend endpoint: GET /api/app-requests/:appRequestId/synthetic-answers
  */
-export async function getSyntheticAnswers(projectId: string, appRequestId: string) {
-  // TODO: Uncomment when backend endpoint is available
-  // const response = await fetch(
-  //   `${API_BASE_URL}/projects/${projectId}/app-requests/${appRequestId}/synthetic-answers`
-  // );
-  // if (!response.ok) {
-  //   if (response.status === 404) return null;
-  //   throw new Error(`Failed to fetch synthetic answers: ${response.statusText}`);
-  // }
-  // return response.json();
+export async function getSyntheticAnswers(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/synthetic-answers`);
 
-  console.warn('getSyntheticAnswers: Backend endpoint does not exist yet');
-  return null;
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error(`Failed to fetch synthetic answers: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.answer || null;
 }
 
 /**
- * Screen Cartographer - Get screen definitions
- * TODO: Backend endpoint does not exist yet. Database models (ScreenIndex, ScreenDefinition) exist.
- * Needed: GET /api/projects/:id/app-requests/:appRequestId/screens
+ * Screen Cartographer - Get screen index with definitions
+ * Backend endpoint: GET /api/app-requests/:appRequestId/screen-index
  */
-export async function getScreenDefinitions(projectId: string, appRequestId: string) {
-  // TODO: Uncomment when backend endpoint is available
-  // const response = await fetch(
-  //   `${API_BASE_URL}/projects/${projectId}/app-requests/${appRequestId}/screens`
-  // );
-  // if (!response.ok) {
-  //   if (response.status === 404) return [];
-  //   throw new Error(`Failed to fetch screens: ${response.statusText}`);
-  // }
-  // const data = await response.json();
-  // return data.screens || [];
+export async function getScreenDefinitions(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/screen-index`);
 
-  console.warn('getScreenDefinitions: Backend endpoint does not exist yet');
-  return [];
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error(`Failed to fetch screen index: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.index || null;
 }
 
 /**
  * Build Prompt Engineer - Get build prompts
- * TODO: Backend endpoint does not exist yet. Database model (BuildPrompt) exists.
- * Needed: GET /api/projects/:id/app-requests/:appRequestId/build-prompts
+ * Backend endpoint: GET /api/app-requests/:appRequestId/build-prompts
  */
-export async function getBuildPrompts(projectId: string, appRequestId: string) {
-  // TODO: Uncomment when backend endpoint is available
-  // const response = await fetch(
-  //   `${API_BASE_URL}/projects/${projectId}/app-requests/${appRequestId}/build-prompts`
-  // );
-  // if (!response.ok) {
-  //   if (response.status === 404) return [];
-  //   throw new Error(`Failed to fetch build prompts: ${response.statusText}`);
-  // }
-  // const data = await response.json();
-  // return data.buildPrompts || [];
+export async function getBuildPrompts(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/build-prompts`);
 
-  console.warn('getBuildPrompts: Backend endpoint does not exist yet');
-  return [];
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch build prompts: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.buildPrompts || [];
 }
 
 /**
  * Execution Planner - Get execution plans
- * TODO: Backend endpoint does not exist yet. Database models (ExecutionPlan, ExecutionUnit) exist.
- * Needed: GET /api/projects/:id/app-requests/:appRequestId/execution-plans
+ * Backend endpoint: GET /api/app-requests/:appRequestId/execution-plans
  */
-export async function getExecutionPlans(projectId: string, appRequestId: string) {
-  // TODO: Uncomment when backend endpoint is available
-  // const response = await fetch(
-  //   `${API_BASE_URL}/projects/${projectId}/app-requests/${appRequestId}/execution-plans`
-  // );
-  // if (!response.ok) {
-  //   if (response.status === 404) return [];
-  //   throw new Error(`Failed to fetch execution plans: ${response.statusText}`);
-  // }
-  // const data = await response.json();
-  // return data.executionPlans || [];
+export async function getExecutionPlans(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/execution-plans`);
 
-  console.warn('getExecutionPlans: Backend endpoint does not exist yet');
-  return [];
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch execution plans: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.plans || [];
 }
 
 /**
@@ -133,22 +109,194 @@ export async function getVerification(projectId: string, appRequestId: string) {
 
 /**
  * Completion Auditor - Get completion report
- * TODO: Backend endpoint does not exist yet. Database models (CompletionDecision, CompletionReport) exist.
- * Needed: GET /api/projects/:id/app-requests/:appRequestId/completion-report
+ * Backend endpoint: GET /api/app-requests/:appRequestId/completion-report
  */
-export async function getCompletionReport(projectId: string, appRequestId: string) {
-  // TODO: Uncomment when backend endpoint is available
-  // const response = await fetch(
-  //   `${API_BASE_URL}/projects/${projectId}/app-requests/${appRequestId}/completion-report`
-  // );
-  // if (!response.ok) {
-  //   if (response.status === 404) return null;
-  //   throw new Error(`Failed to fetch completion report: ${response.statusText}`);
-  // }
-  // return response.json();
+export async function getCompletionReport(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/completion-report`);
 
-  console.warn('getCompletionReport: Backend endpoint does not exist yet');
-  return null;
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error(`Failed to fetch completion report: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.report || null;
+}
+
+/**
+ * Product Strategist - Get planning documents
+ * Backend endpoint: GET /api/app-requests/:appRequestId/planning-documents
+ */
+export async function getPlanningDocuments(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/planning-documents`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch planning documents: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.documents || [];
+}
+
+/**
+ * Journey Orchestrator - Get user journeys
+ * Backend endpoint: GET /api/app-requests/:appRequestId/user-journeys
+ */
+export async function getUserJourneys(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/user-journeys`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch user journeys: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.journeys || [];
+}
+
+/**
+ * VRA - Get visual expansion contracts
+ * Backend endpoint: GET /api/app-requests/:appRequestId/visual-expansions
+ */
+export async function getVisualExpansions(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/visual-expansions`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch visual expansions: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.expansions || [];
+}
+
+/**
+ * DVNL - Get visual normalization contracts
+ * Backend endpoint: GET /api/app-requests/:appRequestId/visual-normalizations
+ */
+export async function getVisualNormalizations(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/visual-normalizations`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch visual normalizations: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.normalizations || [];
+}
+
+/**
+ * VCA - Get visual composition contracts
+ * Backend endpoint: GET /api/app-requests/:appRequestId/visual-compositions
+ */
+export async function getVisualCompositions(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/visual-compositions`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch visual compositions: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.compositions || [];
+}
+
+/**
+ * VCRA - Get visual code rendering contracts
+ * Backend endpoint: GET /api/app-requests/:appRequestId/visual-code-renderings
+ */
+export async function getVisualCodeRenderings(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/visual-code-renderings`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch visual code renderings: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.renderings || [];
+}
+
+/**
+ * Forge Implementer - Get execution units
+ * Backend endpoint: GET /api/app-requests/:appRequestId/execution-units
+ */
+export async function getExecutionUnits(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/execution-units`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch execution units: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.units || [];
+}
+
+/**
+ * Verification Executor - Get verification results
+ * Backend endpoint: GET /api/app-requests/:appRequestId/verification-results
+ */
+export async function getVerificationResults(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/verification-results`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch verification results: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.results || [];
+}
+
+/**
+ * Verification Report Generator - Get verification reports
+ * Backend endpoint: GET /api/app-requests/:appRequestId/verification-reports
+ */
+export async function getVerificationReports(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/verification-reports`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch verification reports: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.reports || [];
+}
+
+/**
+ * Repair Plan Generator - Get repair plans
+ * Backend endpoint: GET /api/app-requests/:appRequestId/repair-plans
+ */
+export async function getRepairPlans(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/repair-plans`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch repair plans: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.plans || [];
+}
+
+/**
+ * Repair Agent - Get repair execution logs
+ * Backend endpoint: GET /api/app-requests/:appRequestId/repair-executions
+ */
+export async function getRepairExecutions(appRequestId: string) {
+  const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/repair-executions`);
+
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`Failed to fetch repair executions: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.logs || [];
 }
 
 /**
