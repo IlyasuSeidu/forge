@@ -11,6 +11,8 @@
 
 import { useState } from 'react';
 import { ApprovalButton } from '@/components/agents/ApprovalButton';
+import { useAgentState } from '@/lib/context/AgentStateContext';
+import { useApproval } from '@/lib/hooks/useApproval';
 import { HashBadge } from '@/components/agents/HashBadge';
 
 // Mock data - will be replaced with real API calls
@@ -91,29 +93,30 @@ No additional screens will be added without restarting planning.
 `;
 
 export default function ScreenCartographerPage() {
+  // Get agent state from context
+  const { currentState } = useAgentState('screen-cartographer');
+
+  // Get approval functions
+  const { approve, reject, isApproving, isRejecting, error } = useApproval(currentState?.approvalId);
+
+  // Local UI state
+
   const [isLocked, setIsLocked] = useState(false);
   const [hash, setHash] = useState<string | null>(null);
 
   const handleApprove = async () => {
-    // TODO: Call API to save screen index and lock
-    console.log('Approving Screen Index');
+    const success = await approve();
 
-    // Mock: Generate a hash and lock
-    const mockHash = 'd7e3f9a1b8c4d2e6';
-    setHash(mockHash);
-    setIsLocked(true);
-
-    // In real implementation, this would:
-    // 1. POST /api/projects/:id/agents/screen-cartographer/approve
-    // 2. Receive hash back
-    // 3. Update agent state
-    // 4. Unlock Journey Orchestrator (Agent 5)
+    if (success) {
+      setIsLocked(true);
+    }
   };
 
   const handleReject = async () => {
-    // TODO: Call API to revise
-    console.log('Rejecting - must revise screen index');
-    alert('Rejection would require re-enumeration of screens from the approved plans.');
+    const confirmed = confirm('Are you sure you want to reject?');
+    if (!confirmed) return;
+
+    await reject('User requested regeneration');
   };
 
   return (
@@ -232,6 +235,21 @@ export default function ScreenCartographerPage() {
             restarting planning. The next agent (Journey Orchestrator) will use this index to map user flows. If any
             screens are missing or should not be included, reject to revise.
           </p>
+
+                    {/* Error Display */}
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <div className="font-semibold text-red-900">Approval Failed</div>
+                  <div className="text-sm text-red-800 mt-1">{error}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <ApprovalButton
             onApprove={handleApprove}

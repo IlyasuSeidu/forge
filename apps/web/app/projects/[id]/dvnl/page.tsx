@@ -11,6 +11,8 @@
 
 import { useState } from 'react';
 import { ApprovalButton } from '@/components/agents/ApprovalButton';
+import { useAgentState } from '@/lib/context/AgentStateContext';
+import { useApproval } from '@/lib/hooks/useApproval';
 import { HashBadge } from '@/components/agents/HashBadge';
 
 // Mock data - will be replaced with real API calls
@@ -198,30 +200,31 @@ const DVNL_CONTRACTS: DVNLContract[] = [
 ];
 
 export default function DVNLPage() {
+  // Get agent state from context
+  const { currentState } = useAgentState('dvnl');
+
+  // Get approval functions
+  const { approve, reject, isApproving, isRejecting, error } = useApproval(currentState?.approvalId);
+
+  // Local UI state
+
   const [isLocked, setIsLocked] = useState(false);
   const [hash, setHash] = useState<string | null>(null);
   const [expandedScreen, setExpandedScreen] = useState(0); // First screen expanded by default
 
   const handleApprove = async () => {
-    // TODO: Call API to save DVNL contracts and lock
-    console.log('Approving Visual Normalization Contracts');
+    const success = await approve();
 
-    // Mock: Generate a hash and lock
-    const mockHash = 'a7b2f4e8c9d3a1f6';
-    setHash(mockHash);
-    setIsLocked(true);
-
-    // In real implementation, this would:
-    // 1. POST /api/projects/:id/agents/dvnl/approve
-    // 2. Receive hash back
-    // 3. Update agent state
-    // 4. Unlock VCA (Agent 8)
+    if (success) {
+      setIsLocked(true);
+    }
   };
 
   const handleReject = async () => {
-    // TODO: Call API to revise
-    console.log('Rejecting - must revise DVNL contracts');
-    alert('Rejection would require re-generation of density constraints from approved sources.');
+    const confirmed = confirm('Are you sure you want to reject?');
+    if (!confirmed) return;
+
+    await reject('User requested regeneration');
   };
 
   // Calculate summary stats
@@ -470,6 +473,21 @@ export default function DVNLPage() {
             cannot be changed without restarting visual planning. The next agent (VCA) will use these constraints to
             compose screen layouts. If any constraints are too restrictive or too loose, reject to revise.
           </p>
+
+                    {/* Error Display */}
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <div className="font-semibold text-red-900">Approval Failed</div>
+                  <div className="text-sm text-red-800 mt-1">{error}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <ApprovalButton
             onApprove={handleApprove}

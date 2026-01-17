@@ -18,6 +18,9 @@
 'use client';
 
 import { useState } from 'react';
+import { ApprovalButton } from '@/components/agents/ApprovalButton';
+import { useAgentState } from '@/lib/context/AgentStateContext';
+import { useApproval } from '@/lib/hooks/useApproval';
 
 interface RepairCandidate {
   candidateId: string;
@@ -114,6 +117,14 @@ const MOCK_DRAFT_REPAIR_PLAN: DraftRepairPlan = {
 };
 
 export default function RepairPlanGeneratorPage() {
+  // Get agent state from context
+  const { currentState } = useAgentState('repair-plan-generator');
+
+  // Get approval functions
+  const { approve, reject, isApproving, isRejecting, error } = useApproval(currentState?.approvalId);
+
+  // Local UI state
+
   const [showFailureDemo, setShowFailureDemo] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
 
@@ -322,7 +333,7 @@ export default function RepairPlanGeneratorPage() {
                 </p>
                 <div className="flex items-center gap-3">
                   <button
-                    disabled={!selectedCandidate}
+                    disabled={!selectedCandidate || !currentState?.approvalId || isApproving || isRejecting}
                     className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
                       selectedCandidate
                         ? 'bg-green-600 text-white hover:bg-green-700'

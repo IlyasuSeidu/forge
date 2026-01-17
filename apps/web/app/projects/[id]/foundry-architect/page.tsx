@@ -12,6 +12,8 @@
 import { useState } from 'react';
 import { ApprovalButton } from '@/components/agents/ApprovalButton';
 import { HashBadge } from '@/components/agents/HashBadge';
+import { useAgentState } from '@/lib/context/AgentStateContext';
+import { useApproval } from '@/lib/hooks/useApproval';
 
 // The 8 foundational questions (immutable)
 const QUESTIONS = [
@@ -66,9 +68,16 @@ const QUESTIONS = [
 ];
 
 export default function FoundryArchitectPage() {
+  // Get agent state from context
+  const { currentState } = useAgentState('foundry-architect');
+
+  // Get approval functions
+  const { approve, reject, isApproving, isRejecting, error } = useApproval(currentState?.approvalId);
+
+  // Local UI state
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [isLocked, setIsLocked] = useState(false);
-  const [hash, setHash] = useState<string | null>(null);
+  const [isLocked, setIsLocked] = useState(currentState?.status === 'approved');
+  const [hash, setHash] = useState<string | null>(currentState?.hash || null);
 
   const allAnswersFilled = QUESTIONS.every((q) => answers[q.id]?.trim().length > 0);
 
@@ -78,23 +87,19 @@ export default function FoundryArchitectPage() {
   };
 
   const handleApprove = async () => {
-    // TODO: Call API to save answers and lock
-    console.log('Approving answers:', answers);
+    const success = await approve();
 
-    // Mock: Generate a hash and lock
-    const mockHash = 'fa8c7d2e9b1a4f6e';
-    setHash(mockHash);
-    setIsLocked(true);
-
-    // In real implementation, this would:
-    // 1. POST /api/projects/:id/agents/foundry-architect/approve
-    // 2. Receive hash back
-    // 3. Update agent state
+    if (success) {
+      setIsLocked(true);
+      // Hash will be available from updated agent state after refresh
+    }
   };
 
   const handleReject = async () => {
-    // TODO: Call API to reset
-    console.log('Rejecting - clearing answers');
+    const confirmed = confirm('Are you sure you want to clear all answers?');
+    if (!confirmed) return;
+
+    await reject('User cleared answers');
     setAnswers({});
   };
 
@@ -186,10 +191,25 @@ export default function FoundryArchitectPage() {
             Once you approve, these answers will be locked and hash-sealed. They cannot be changed afterward.
           </p>
 
+          {/* Error Display */}
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <div className="font-semibold text-red-900">Approval Failed</div>
+                  <div className="text-sm text-red-800 mt-1">{error}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <ApprovalButton
             onApprove={handleApprove}
             onReject={handleReject}
-            disabled={!allAnswersFilled}
+            disabled={!allAnswersFilled || !currentState?.approvalId || isApproving || isRejecting}
             approveText="Lock Answers & Continue"
             rejectText="Clear All"
           />
@@ -198,6 +218,14 @@ export default function FoundryArchitectPage() {
             <p className="text-sm text-amber-600 mt-4">
               Please answer all 8 questions before proceeding.
             </p>
+          )}
+
+          {!currentState?.approvalId && allAnswersFilled && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-sm text-amber-900">
+                ℹ️ Complete the required steps before approval is available.
+              </p>
+            </div>
           )}
         </div>
       )}

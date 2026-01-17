@@ -18,6 +18,9 @@
 'use client';
 
 import { useState } from 'react';
+import { ApprovalButton } from '@/components/agents/ApprovalButton';
+import { useAgentState } from '@/lib/context/AgentStateContext';
+import { useApproval } from '@/lib/hooks/useApproval';
 
 interface StepLedgerEntry {
   stepId: string;
@@ -326,6 +329,14 @@ const MOCK_VERIFICATION_REPORTS: VerificationReport[] = [
 ];
 
 export default function VerificationReportGeneratorPage() {
+  // Get agent state from context
+  const { currentState } = useAgentState('verification-report-generator');
+
+  // Get approval functions
+  const { approve, reject, isApproving, isRejecting, error } = useApproval(currentState?.approvalId);
+
+  // Local UI state
+
   const [expandedReport, setExpandedReport] = useState<number>(0);
   const [showFailureExample, setShowFailureExample] = useState(false);
 

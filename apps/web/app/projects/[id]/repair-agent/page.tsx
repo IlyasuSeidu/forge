@@ -20,6 +20,9 @@
 'use client';
 
 import { useState } from 'react';
+import { ApprovalButton } from '@/components/agents/ApprovalButton';
+import { useAgentState } from '@/lib/context/AgentStateContext';
+import { useApproval } from '@/lib/hooks/useApproval';
 
 interface RepairExecutionStep {
   stepId: string;
@@ -81,6 +84,14 @@ const MOCK_REPAIR_EXECUTION_LOG: RepairExecutionLog = {
 };
 
 export default function RepairAgentPage() {
+  // Get agent state from context
+  const { currentState } = useAgentState('repair');
+
+  // Get approval functions
+  const { approve, reject, isApproving, isRejecting, error } = useApproval(currentState?.approvalId);
+
+  // Local UI state
+
   const [showScopeViolationDemo, setShowScopeViolationDemo] = useState(false);
 
   // For demo: verification passed, so no repair plan approved

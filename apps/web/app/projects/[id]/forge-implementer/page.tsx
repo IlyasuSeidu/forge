@@ -17,6 +17,9 @@
 'use client';
 
 import { useState } from 'react';
+import { ApprovalButton } from '@/components/agents/ApprovalButton';
+import { useAgentState } from '@/lib/context/AgentStateContext';
+import { useApproval } from '@/lib/hooks/useApproval';
 
 interface TaskExecutionEntry {
   taskId: string;
@@ -723,6 +726,14 @@ const MOCK_EXECUTION_LOGS: ExecutionLog[] = [
 ];
 
 export default function ForgeImplementerPage() {
+  // Get agent state from context
+  const { currentState } = useAgentState('forge-implementer');
+
+  // Get approval functions
+  const { approve, reject, isApproving, isRejecting, error } = useApproval(currentState?.approvalId);
+
+  // Local UI state
+
   const [expandedLog, setExpandedLog] = useState<number>(0);
   const [showFailureExample, setShowFailureExample] = useState(false);
 
