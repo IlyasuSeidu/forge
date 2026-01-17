@@ -22,6 +22,7 @@ export interface AgentState {
   hash?: string;
   approvedAt?: string;
   error?: string;
+  approvalId?: string; // Present when status is 'awaiting_approval'
 }
 
 // ============================================================================

@@ -11,6 +11,7 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import { AgentTimeline } from '@/components/agents/AgentTimeline';
 import { AgentState } from '@/lib/agents';
+import { AgentStateProvider } from '@/lib/context/AgentStateContext';
 
 interface ProjectLayoutProps {
   children: ReactNode;
@@ -130,7 +131,11 @@ async function getAgentStates(projectId: string): Promise<AgentState[]> {
       hash: 'p1q2r3s4t5u6v7w8',
       approvedAt: '2026-01-14T15:45:00Z',
     },
-    { id: 'completion', status: 'awaiting_approval' },
+    {
+      id: 'completion',
+      status: 'awaiting_approval',
+      approvalId: 'approval-completion-demo-1', // Mock approvalId for demo
+    },
   ];
 }
 
@@ -178,9 +183,11 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
         <AgentTimeline projectId={id} agentStates={agentStates} />
 
         {/* Agent Content Area */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="max-w-5xl mx-auto p-8">{children}</div>
-        </main>
+        <AgentStateProvider agentStates={agentStates} projectId={id}>
+          <main className="flex-1 overflow-y-auto bg-gray-50">
+            <div className="max-w-5xl mx-auto p-8">{children}</div>
+          </main>
+        </AgentStateProvider>
       </div>
     </div>
   );

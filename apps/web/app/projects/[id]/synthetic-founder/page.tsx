@@ -12,6 +12,8 @@
 import { useState } from 'react';
 import { ApprovalButton } from '@/components/agents/ApprovalButton';
 import { HashBadge } from '@/components/agents/HashBadge';
+import { useAgentState } from '@/lib/context/AgentStateContext';
+import { useApproval } from '@/lib/hooks/useApproval';
 
 // Mock data - will be replaced with real API calls
 const MOCK_FOUNDRY_ANSWERS = {
@@ -82,29 +84,32 @@ Unlike generic fitness trackers that only log data, this app focuses on building
 `;
 
 export default function SyntheticFounderPage() {
-  const [isLocked, setIsLocked] = useState(false);
-  const [hash, setHash] = useState<string | null>(null);
+  // Get agent state from context
+  const { currentState } = useAgentState('synthetic-founder');
+
+  // Get approval functions
+  const { approve, reject, isApproving, isRejecting, error } = useApproval(currentState?.approvalId);
+
+  // Local UI state
+  const [isLocked, setIsLocked] = useState(currentState?.status === 'approved');
+  const [hash, setHash] = useState<string | null>(currentState?.hash || null);
 
   const handleApprove = async () => {
-    // TODO: Call API to save base prompt and lock
-    console.log('Approving base prompt');
+    const success = await approve();
 
-    // Mock: Generate a hash and lock
-    const mockHash = 'b9d4e1f7c3a8d2e5';
-    setHash(mockHash);
-    setIsLocked(true);
-
-    // In real implementation, this would:
-    // 1. POST /api/projects/:id/agents/synthetic-founder/approve
-    // 2. Receive hash back
-    // 3. Update agent state
-    // 4. Unlock Product Strategist (Agent 3)
+    if (success) {
+      // Update local state on success
+      setIsLocked(true);
+      // Hash will be available from updated agent state after refresh
+    }
   };
 
   const handleReject = async () => {
-    // TODO: Call API to go back to Foundry Architect
-    console.log('Rejecting - must revise Foundry Architect answers');
-    alert('Rejection would take you back to Foundry Architect to revise your answers.');
+    const confirmed = confirm('Are you sure you want to reject? This will require regenerating the base prompt.');
+
+    if (!confirmed) return;
+
+    await reject('User requested regeneration');
   };
 
   return (
@@ -204,11 +209,44 @@ export default function SyntheticFounderPage() {
             your Foundry Architect answers.
           </p>
 
+          {/* Error Display */}
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <div className="font-semibold text-red-900">Approval Failed</div>
+                  <div className="text-sm text-red-800 mt-1">{error}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* No Approval ID Warning */}
+          {!currentState?.approvalId && (
+            <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <div className="font-semibold text-amber-900">Not Ready for Approval</div>
+                  <div className="text-sm text-amber-800 mt-1">
+                    This agent has not yet generated an artifact awaiting approval. Complete the previous steps first.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <ApprovalButton
             onApprove={handleApprove}
             onReject={handleReject}
             approveText="Approve & Lock Base Prompt"
             rejectText="Reject & Revise"
+            disabled={!currentState?.approvalId || isApproving || isRejecting}
           />
         </div>
       )}
