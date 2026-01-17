@@ -203,7 +203,7 @@ export const AGENTS: AgentMetadata[] = [
     tierName: 'Verification & Completion',
     icon: '✅',
     description: 'Final gate: COMPLETE or NOT_COMPLETE',
-    route: 'completion',
+    route: 'completion-auditor',
   },
 ];
 
