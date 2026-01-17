@@ -59,6 +59,26 @@ export async function projectRoutes(
   );
 
   /**
+   * GET /projects/:id/state
+   * Gets comprehensive project state including all 17 agents' status
+   * This is the unified API for frontend to get complete project state
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/projects/:id/state',
+    async (request) => {
+      const projectState = await projectService.getProjectState(request.params.id);
+
+      if (!projectState) {
+        throw new NotFoundError('Project', request.params.id);
+      }
+
+      fastify.log.info({ projectId: request.params.id }, 'Project state retrieved');
+
+      return projectState;
+    }
+  );
+
+  /**
    * GET /api/projects/:projectId/export.zip
    * Exports project workspace as ZIP file
    */

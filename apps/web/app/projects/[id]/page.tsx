@@ -21,51 +21,14 @@ import {
   isVerificationReportAvailable,
   isCompletionCertificateAvailable,
 } from '@/lib/projectState';
-import { AgentState } from '@/lib/agents';
+import { useAgentState } from '@/lib/context/AgentStateContext';
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>;
 }
 
-// Mock data - will be replaced with API calls
-function getProjectData(projectId: string) {
-  return {
-    id: projectId,
-    name: 'Fitness Habit Tracker',
-    purpose: 'Help users build sustainable fitness habits through daily tracking and progress visualization',
-    createdAt: '2026-01-14T14:00:00Z',
-  };
-}
-
-function getAgentStates(projectId: string): AgentState[] {
-  // Mock: 16 agents approved, completion auditor awaiting
-  return [
-    { id: 'foundry-architect', status: 'approved', hash: 'fa8c7d2e9b1a4f6e', approvedAt: '2026-01-14T14:30:00Z' },
-    { id: 'synthetic-founder', status: 'approved', hash: 'b9d4e1f7c3a8d2e5', approvedAt: '2026-01-14T14:35:00Z' },
-    { id: 'product-strategist', status: 'approved', hash: 'c4f8a2d9e7b1f3a6', approvedAt: '2026-01-14T14:40:00Z' },
-    { id: 'screen-cartographer', status: 'approved', hash: 'd7e3f9a1b8c4d2e6', approvedAt: '2026-01-14T14:45:00Z' },
-    { id: 'journey-orchestrator', status: 'approved', hash: 'e8f4b3c2d9a5e7f1', approvedAt: '2026-01-14T14:50:00Z' },
-    { id: 'vra', status: 'approved', hash: 'f9a5b6d3e1c7f8a2', approvedAt: '2026-01-14T14:55:00Z' },
-    { id: 'dvnl', status: 'approved', hash: 'g1b7c4e2f8a3d9e5', approvedAt: '2026-01-14T15:00:00Z' },
-    { id: 'vca', status: 'approved', hash: 'h2c8d5f3a9b4e6f2', approvedAt: '2026-01-14T15:05:00Z' },
-    { id: 'vcra', status: 'approved', hash: 'i3d9e6f4b1a5c7d3', approvedAt: '2026-01-14T15:10:00Z' },
-    { id: 'build-prompt', status: 'approved', hash: 'j1k2l3m4n5o6p7q8', approvedAt: '2026-01-14T15:15:00Z' },
-    { id: 'execution-planner', status: 'approved', hash: 'k1l2m3n4o5p6q7r8', approvedAt: '2026-01-14T15:20:00Z' },
-    { id: 'forge-implementer', status: 'approved', hash: 'l1m2n3o4p5q6r7s8', approvedAt: '2026-01-14T15:25:00Z' },
-    { id: 'verification-executor', status: 'approved', hash: 'm1n2o3p4q5r6s7t8', approvedAt: '2026-01-14T15:30:00Z' },
-    {
-      id: 'verification-report-generator',
-      status: 'approved',
-      hash: 'n1o2p3q4r5s6t7u8',
-      approvedAt: '2026-01-14T15:35:00Z',
-    },
-    { id: 'repair-plan-generator', status: 'approved', hash: 'o1p2q3r4s5t6u7v8', approvedAt: '2026-01-14T15:40:00Z' },
-    { id: 'repair', status: 'approved', hash: 'p1q2r3s4t5u6v7w8', approvedAt: '2026-01-14T15:45:00Z' },
-    { id: 'completion', status: 'awaiting_approval' },
-  ];
-}
-
 function getRecentActivity() {
+  // TODO: Replace with real activity log from backend
   return [
     { event: 'Agent Approved', details: 'Repair Agent', timestamp: '2 minutes ago' },
     { event: 'Agent Approved', details: 'Repair Plan Generator', timestamp: '5 minutes ago' },
@@ -77,9 +40,18 @@ function getRecentActivity() {
 
 export default function ProjectPage({ params }: ProjectPageProps) {
   const { id: projectId } = use(params);
-  const project = getProjectData(projectId);
-  const agentStates = getAgentStates(projectId);
+
+  // Use real agent states from context (populated by layout from backend API)
+  const { agentStates, projectId: ctxProjectId } = useAgentState();
   const recentActivity = getRecentActivity();
+
+  // Project data - for now use projectId, but in future we can add more from context
+  const project = {
+    id: projectId,
+    name: 'Project', // TODO: Get from project state API in layout
+    purpose: '', // TODO: Get from project state API
+    createdAt: new Date().toISOString(),
+  };
 
   const approvedCount = agentStates.filter((s) => s.status === 'approved').length;
   const totalAgents = agentStates.length;
