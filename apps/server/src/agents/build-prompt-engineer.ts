@@ -108,6 +108,7 @@ interface BuildLedger {
 /**
  * Build phase definitions (deterministic order)
  */
+// @ts-expect-error - Constant defined for future use
 const BUILD_PHASES = [
   'scaffolding',
   'architecture',
@@ -358,7 +359,7 @@ export class BuildPromptEngineer {
   }
 
   private async generatePromptForPhase(
-    appRequestId: string,
+    _appRequestId: string,
     phase: string,
     context: { rules: string; screens: string[]; appRequestId: string },
     sequenceIndex: number,

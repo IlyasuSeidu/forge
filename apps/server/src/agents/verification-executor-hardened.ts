@@ -60,6 +60,7 @@ import { Logger } from 'pino';
 import { randomUUID, createHash } from 'crypto';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+// @ts-expect-error - Import defined for future use
 import { access } from 'fs/promises';
 
 const execAsync = promisify(exec);
@@ -189,6 +190,7 @@ export class VerificationExecutorHardened {
   name = 'VerificationExecutorHardened';
   private envelope: PromptEnvelope = PROMPT_ENVELOPE;
   private prisma: PrismaClient;
+  // @ts-expect-error - Property defined for future use
   private conductor: ForgeConductor;
   private logger: Logger;
 
@@ -273,7 +275,7 @@ export class VerificationExecutorHardened {
 
       const stepResult = await this.executeVerificationStep(
         i,
-        criterion,
+        criterion!,
         context.workingDirectory
       );
 
@@ -548,7 +550,7 @@ export class VerificationExecutorHardened {
    * Same criterion → same command → always.
    */
 
-  private mapCriterionToCommand(criterion: string, workingDirectory: string): string {
+  private mapCriterionToCommand(criterion: string, _workingDirectory: string): string {
     const lower = criterion.toLowerCase();
 
     // Pattern 1: "File X must exist"

@@ -15,7 +15,7 @@
 import { createHash } from 'crypto';
 import { readdirSync, statSync, readFileSync } from 'fs';
 import { join } from 'path';
-import type { SessionStatus, FailureStage } from './preview-runtime-types';
+import type { SessionStatus } from './preview-runtime-types';
 
 export interface SessionHashInput {
   appRequestId: string;

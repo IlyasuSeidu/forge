@@ -76,7 +76,7 @@ export class PreviewRuntime {
 
     // PHASE 5: Create session record (status: READY)
     const sessionId = randomUUID();
-    const session = await this.prisma.previewRuntimeSession.create({
+    void await this.prisma.previewRuntimeSession.create({
       data: {
         id: sessionId,
         appRequestId,
@@ -188,7 +188,7 @@ export class PreviewRuntime {
     workspaceDir: string,
     port: number
   ): Promise<void> {
-    const stateMachine = new PreviewStateMachine(sessionId, this.logger);
+    void new PreviewStateMachine(sessionId, this.logger);
 
     try {
       // Transition: READY → STARTING
@@ -323,7 +323,7 @@ export class PreviewRuntime {
   /**
    * Wait for server to be ready (poll HTTP endpoint).
    */
-  private async waitForServerReady(port: number, sessionId: string): Promise<void> {
+  private async waitForServerReady(port: number, _sessionId: string): Promise<void> {
     const maxAttempts = 30; // 30 seconds (poll every 1s)
     const pollInterval = 1000;
 

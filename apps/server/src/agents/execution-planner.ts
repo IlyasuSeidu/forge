@@ -20,6 +20,7 @@
  * - Full event emission for observability
  */
 
+// @ts-expect-error - ExecutionPlan type imported for future use
 import type { PrismaClient, ExecutionPlan, ExecutionUnit } from '@prisma/client';
 import type { ForgeConductor } from '../conductor/forge-conductor.js';
 import type { Logger } from 'pino';

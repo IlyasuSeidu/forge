@@ -29,7 +29,7 @@
 import { PrismaClient } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
 import { randomUUID, createHash } from 'crypto';
-import type { FoundryArchitect } from './foundry-architect-hardened.js';
+import type { FoundryArchitectHardened } from './foundry-architect-hardened.js';
 import type { ForgeConductor } from '../conductor/forge-conductor.js';
 
 /**
@@ -139,7 +139,7 @@ export class SyntheticFounderHardened {
 
   constructor(
     private prisma: PrismaClient,
-    private foundryArchitect: FoundryArchitect,
+    private foundryArchitect: FoundryArchitectHardened,
     private conductor: ForgeConductor,
     private logger: FastifyBaseLogger,
     config?: Partial<LLMConfig>
@@ -918,7 +918,7 @@ Remember: Respond with ONLY a valid JSON object. No additional text.`;
     // If response has markdown code blocks, extract JSON
     const jsonMatch = jsonStr.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
     if (jsonMatch) {
-      jsonStr = jsonMatch[1];
+      jsonStr = jsonMatch[1]!;
     }
 
     // Parse JSON
@@ -980,8 +980,8 @@ Remember: Respond with ONLY a valid JSON object. No additional text.`;
       throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
-    const data = await response.json();
-    const message = data.choices?.[0]?.message?.content;
+    const data = (await response.json()) as any;
+    const message = data.choices?.[0]?.message?.content as string | undefined;
 
     if (!message) {
       throw new Error('No response from OpenAI API');
@@ -1025,8 +1025,8 @@ Remember: Respond with ONLY a valid JSON object. No additional text.`;
       throw new Error(`Anthropic API error: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
-    const data = await response.json();
-    const message = data.content?.[0]?.text;
+    const data = await response.json() as any;
+    const message = data.content?.[0]?.text as string | undefined;
 
     if (!message) {
       throw new Error('No response from Anthropic API');

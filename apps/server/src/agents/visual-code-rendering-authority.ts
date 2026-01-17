@@ -138,7 +138,7 @@ export class VisualCodeRenderingAuthority {
     this.validateEnvelope();
 
     // Lock conductor to prevent concurrent modifications
-    await this.conductor.lock(appRequestId, 'Generating UI code for screen mockup');
+    await this.conductor.lock(appRequestId);
 
     try {
       // Load isolated context (requires approved VRA, DVNL, VCA)
@@ -383,17 +383,17 @@ export class VisualCodeRenderingAuthority {
     }
 
     const planningDocsHash = this.hashString(
-      masterPlan.documentHash + implPlan.documentHash
+      masterPlan.documentHash! + implPlan.documentHash!
     );
 
     return {
       appRequestId,
-      basePrompt: { hash: foundrySession.basePromptHash },
+      basePrompt: { hash: foundrySession.basePromptHash! },
       planningDocs: { hash: planningDocsHash },
-      screenIndex: { hash: screenIndex.screenIndexHash },
+      screenIndex: { hash: screenIndex.screenIndexHash! },
       screenDefinition: {
         content: screenDefinition.content,
-        hash: screenDefinition.screenHash,
+        hash: screenDefinition.screenHash!,
       },
       visualExpansionContract: {
         contractData: JSON.parse(vraContract.contractJson),
@@ -435,22 +435,24 @@ export class VisualCodeRenderingAuthority {
       ],
     });
 
-    const content = response.content[0];
+    const content = response.content[0]!;
     if (content.type !== 'text') {
       throw new Error('Unexpected response type from Claude');
     }
 
+    const textContent = (content as { type: 'text'; text: string }).text;
+
     // Parse response - expecting JSON with contract data + generated code
     let parsedResponse;
     try {
-      const jsonMatch = content.text.match(/```json\n([\s\S]*?)\n```/);
+      const jsonMatch = textContent.match(/```json\n([\s\S]*?)\n```/);
       if (jsonMatch) {
-        parsedResponse = JSON.parse(jsonMatch[1]);
+        parsedResponse = JSON.parse(jsonMatch[1]!);
       } else {
-        parsedResponse = JSON.parse(content.text);
+        parsedResponse = JSON.parse(textContent);
       }
     } catch (error) {
-      this.logger.error({ response: content.text }, 'Failed to parse Claude response');
+      this.logger.error({ response: textContent }, 'Failed to parse Claude response');
       throw new Error('Failed to parse code generation response');
     }
 

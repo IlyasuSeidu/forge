@@ -360,7 +360,7 @@ export class DeterministicVisualNormalizer {
     const planningDocsHash = createHash('sha256')
       .update(
         planningDocs
-          .map((doc) => `${doc.title}:${doc.documentHash}`)
+          .map((doc) => `${doc.type}:${doc.documentHash}`)
           .sort()
           .join('|')
       )
@@ -414,11 +414,11 @@ export class DeterministicVisualNormalizer {
         basePromptHash,
       },
       planningDocsHash,
-      screenIndexHash: screenIndex.screenIndexHash,
+      screenIndexHash: screenIndex.screenIndexHash!,
       screenDefinition: {
         screenName: screenDefinition.screenName,
         content: screenDefinition.content,
-        screenHash: screenDefinition.screenHash,
+        screenHash: screenDefinition.screenHash!,
       },
       visualExpansionContract: {
         contractData,
@@ -448,18 +448,18 @@ export class DeterministicVisualNormalizer {
       ],
     });
 
-    const content = response.content[0];
+    const content = response.content[0]!;
     if (content.type !== 'text') {
       throw new Error('Expected text response from Claude');
     }
 
     // Parse JSON from response
-    const jsonMatch = content.text.match(/```json\n([\s\S]+?)\n```/);
+    const jsonMatch = (content as { type: 'text'; text: string }).text.match(/```json\n([\s\S]+?)\n```/);
     if (!jsonMatch) {
       throw new Error('Failed to extract JSON from Claude response');
     }
 
-    const contractData = JSON.parse(jsonMatch[1]) as VisualNormalizationContractData;
+    const contractData = JSON.parse(jsonMatch[1]!) as VisualNormalizationContractData;
 
     this.logger.info(
       {

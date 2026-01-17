@@ -98,6 +98,7 @@ export interface RepairExecutionLog {
 export class RepairAgentHardened {
   name = 'RepairAgentHardened';
 
+  // @ts-expect-error - Property defined for future use
   private envelope: PromptEnvelope = {
     authority: 'REPAIR_EXECUTION_AUTHORITY',
     tier: 5.75,
@@ -149,6 +150,7 @@ export class RepairAgentHardened {
 
   constructor(
     private prisma: PrismaClient,
+    // @ts-expect-error - Parameter defined for future use
     private conductor: ForgeConductor,
     private logger: Logger
   ) {

@@ -418,8 +418,8 @@ Make the rules explicit, specific, and enforceable. Downstream coding agents wil
         throw new Error(`OpenAI API error: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      const rulesContent = data.choices[0].message.content;
+      const data = await response.json() as any;
+      const rulesContent = data.choices[0].message.content as string;
 
       this.logger.info(
         { appRequestId, contentLength: rulesContent.length },
@@ -644,7 +644,7 @@ The AI agent must STOP and ask for help if:
     const roles: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i]!.trim();
 
       // Skip header row and separator
       if (line.startsWith('| Role Name') || line.startsWith('|---') || !line.startsWith('|')) {

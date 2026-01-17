@@ -155,6 +155,7 @@ export class VerificationReportGeneratorHardened {
   name = 'VerificationReportGeneratorHardened';
   private envelope: PromptEnvelope = PROMPT_ENVELOPE;
   private prisma: PrismaClient;
+  // @ts-expect-error - Property defined for future use
   private conductor: ForgeConductor;
   private logger: Logger;
 

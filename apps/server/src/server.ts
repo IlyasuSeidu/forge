@@ -74,7 +74,7 @@ export async function createServer() {
   );
 
   // Initialize Forge Conductor (master orchestration engine)
-  const forgeConductor = new ForgeConductor(
+  void new ForgeConductor(
     executionService.getPrismaClient(),
     fastify.log
   );
@@ -165,94 +165,94 @@ export async function createServer() {
   );
   await fastify.register(
     async (instance) =>
-      previewRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      previewRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
 
   // Register agent-specific artifact routes
   await fastify.register(
     async (instance) =>
-      foundryRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      foundryRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      syntheticFounderRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      syntheticFounderRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      productStrategistRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      productStrategistRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      screenCartographerRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      screenCartographerRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      journeyOrchestratorRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      journeyOrchestratorRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      vraRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      vraRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      dvnlRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      dvnlRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      vcaRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      vcaRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      vcraRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      vcraRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      buildPromptRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      buildPromptRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      executionPlannerRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      executionPlannerRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      forgeImplementerRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      forgeImplementerRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      verificationExecutorRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      verificationExecutorRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      verificationReportRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      verificationReportRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      repairPlanRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      repairPlanRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      repairAgentRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      repairAgentRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
   await fastify.register(
     async (instance) =>
-      completionRoutes(instance, executionService.getPrismaClient(), fastify.log),
+      completionRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
     { prefix: '/api' }
   );
 

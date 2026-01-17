@@ -229,9 +229,9 @@ export class FoundryArchitect {
 
     return {
       step: session.currentStep,
-      questionId: question.id,
-      question: question.question,
-      optional: question.optional,
+      questionId: question!.id,
+      question: question!.question,
+      optional: question!.optional,
       totalQuestions: QUESTIONS.length,
     };
   }
@@ -272,7 +272,7 @@ export class FoundryArchitect {
     }
 
     // Get current question and save answer
-    const question = QUESTIONS[session.currentStep];
+    const question = QUESTIONS[session.currentStep]!;
     const answers: Answers = JSON.parse(session.answers);
     answers[question.id] = answer.trim();
 

@@ -532,6 +532,7 @@ export class ProductStrategistHardened {
     );
 
     // PART 5: Compute hashes
+    // @ts-expect-error - Variable defined for future use
     const documentHash = this.computeDocumentHash(masterPlanContent);
     const sectionHashes = this.computeSectionHashes(masterPlanContract);
 
@@ -698,6 +699,7 @@ export class ProductStrategistHardened {
       );
 
       // Compute hashes
+      // @ts-expect-error - Variable defined for future use
       const implDocHash = this.computeDocumentHash(implPlanContent);
       const implSectionHashes = this.computeSectionHashes(implPlanContract);
 
@@ -1096,7 +1098,7 @@ Generate an Implementation Plan. Remember: Respond with ONLY a valid JSON object
     // If response has markdown code blocks, extract JSON
     const jsonMatch = jsonStr.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
     if (jsonMatch) {
-      jsonStr = jsonMatch[1];
+      jsonStr = jsonMatch[1]!;
     }
 
     // Parse JSON
@@ -1130,7 +1132,7 @@ Generate an Implementation Plan. Remember: Respond with ONLY a valid JSON object
     // If response has markdown code blocks, extract JSON
     const jsonMatch = jsonStr.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
     if (jsonMatch) {
-      jsonStr = jsonMatch[1];
+      jsonStr = jsonMatch[1]!;
     }
 
     // Parse JSON
@@ -1185,8 +1187,8 @@ Generate an Implementation Plan. Remember: Respond with ONLY a valid JSON object
       throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
-    const data = await response.json();
-    const message = data.choices?.[0]?.message?.content;
+    const data = (await response.json()) as any;
+    const message = data.choices?.[0]?.message?.content as string | undefined;
 
     if (!message) {
       throw new Error('No response from OpenAI API');
@@ -1228,8 +1230,8 @@ Generate an Implementation Plan. Remember: Respond with ONLY a valid JSON object
       throw new Error(`Anthropic API error: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
-    const data = await response.json();
-    const message = data.content?.[0]?.text;
+    const data = await response.json() as any;
+    const message = data.content?.[0]?.text as string | undefined;
 
     if (!message) {
       throw new Error('No response from Anthropic API');

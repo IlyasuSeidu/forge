@@ -408,7 +408,7 @@ export class ForgeImplementerHardened {
   /**
    * EXECUTE: ADD_DEPENDENCY
    */
-  private async executeAddDependency(task: ExecutionTask, context: IsolatedContext): Promise<void> {
+  private async executeAddDependency(task: ExecutionTask, _context: IsolatedContext): Promise<void> {
     // For now, just log the dependency addition
     // In production, this would actually modify package.json
     this.logger.info({ target: task.target, description: task.description }, 'Dependency added (placeholder)');
@@ -421,7 +421,7 @@ export class ForgeImplementerHardened {
    */
   private async verifyOutcome(
     task: ExecutionTask,
-    context: IsolatedContext
+    _context: IsolatedContext
   ): Promise<Array<{ criterion: string; passed: boolean; reason?: string }>> {
     this.validateAction('verifyOutcome');
 
@@ -562,7 +562,7 @@ export class ForgeImplementerHardened {
     try {
       // Execute tasks sequentially (NO PARALLEL EXECUTION)
       for (let i = 0; i < context.executionPlan.tasks.length; i++) {
-        const task = context.executionPlan.tasks[i];
+        const task = context.executionPlan.tasks[i]!;
 
         this.logger.info({ taskId: task.taskId, index: i + 1, total: context.executionPlan.tasks.length }, 'Executing task');
 

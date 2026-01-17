@@ -97,7 +97,7 @@ export class PreconditionValidator {
       where: { appRequestId },
     });
 
-    if (conductorState && conductorState.isLocked) {
+    if (conductorState && conductorState.locked) {
       errors.push('Conductor is currently locked (build in progress)');
       errors.push('Preview cannot run while build is active');
       this.throwPreconditionError(errors);

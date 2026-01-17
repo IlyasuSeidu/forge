@@ -158,7 +158,7 @@ export class CompletionAuditorHardened {
       };
     }
 
-    const ruleSet = ruleSets[0];
+    const ruleSet = ruleSets[0]!;
 
     // Must be approved
     if (ruleSet.status !== 'approved') {
@@ -333,7 +333,7 @@ export class CompletionAuditorHardened {
    *
    * One log per ExecutionPlan, no missing tasks, no retries
    */
-  private async check4_executionLogIntegrity(appRequestId: string): Promise<CheckResult> {
+  private async check4_executionLogIntegrity(_appRequestId: string): Promise<CheckResult> {
     this.validateAction('compareHashes');
 
     // For now, we don't have ExecutionLog stored in database
@@ -467,7 +467,7 @@ export class CompletionAuditorHardened {
    *
    * All files declared in BuildPrompts exist, no extra files
    */
-  private async check7_artifactCoverage(appRequestId: string): Promise<CheckResult> {
+  private async check7_artifactCoverage(_appRequestId: string): Promise<CheckResult> {
     this.validateAction('compareStates');
 
     // For now, this would require file system access to verify
@@ -828,7 +828,7 @@ export class CompletionAuditorHardened {
    *
    * Get last completion report (placeholder for future)
    */
-  async getReport(appRequestId: string): Promise<CompletionReport | null> {
+  async getReport(_appRequestId: string): Promise<CompletionReport | null> {
     // For now, reports are not persisted
     // This would be implemented when CompletionReport is stored in database
     return null;

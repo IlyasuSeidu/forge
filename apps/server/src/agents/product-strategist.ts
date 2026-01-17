@@ -607,8 +607,8 @@ Generate an Implementation Plan for this product.`;
       throw new Error(`LLM API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    const message = data.choices?.[0]?.message?.content;
+    const data = await response.json() as any;
+    const message = data.choices?.[0]?.message?.content as string | undefined;
 
     if (!message) {
       throw new Error('No response from LLM API');

@@ -153,6 +153,7 @@ export class RepairPlanGenerator {
   name = 'RepairPlanGenerator';
   private envelope: PromptEnvelope = PROMPT_ENVELOPE;
   private prisma: PrismaClient;
+  // @ts-expect-error - Property defined for future use
   private conductor: ForgeConductor;
   private logger: Logger;
 
@@ -426,7 +427,7 @@ export class RepairPlanGenerator {
   private proposeRepairCandidates(
     verificationResult: any,
     buildPrompt: any,
-    executionPlan: any
+    _executionPlan: any
   ): CandidateRepair[] {
     this.validateAction('proposeRepairCandidates');
 
@@ -528,7 +529,7 @@ export class RepairPlanGenerator {
    */
 
   private async persistDraftRepairPlan(
-    appRequestId: string,
+    _appRequestId: string,
     draftPlan: DraftRepairPlan
   ): Promise<void> {
     this.validateAction('emitDraftRepairPlan');

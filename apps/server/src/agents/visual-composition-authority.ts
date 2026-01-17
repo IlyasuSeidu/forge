@@ -459,7 +459,7 @@ export class VisualCompositionAuthority {
     return {
       appRequestId,
       basePrompt: {
-        content: foundrySession.draftPrompt,
+        content: foundrySession.draftPrompt!,
         basePromptHash,
       },
       planningDocsHash,
@@ -638,7 +638,7 @@ Generate the Visual Composition Contract now:`;
    */
   private validateContract(
     contractData: VisualCompositionContractData,
-    context: IsolatedContext
+    _context: IsolatedContext
   ): void {
     // Validate required fields
     if (!contractData.screenName || !contractData.layoutType) {

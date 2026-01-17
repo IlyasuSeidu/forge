@@ -187,7 +187,7 @@ export class VisualForge {
 
     return {
       message: `Ready to mock "${nextScreen}". Please select layout type (mobile or desktop).`,
-      nextScreen,
+      nextScreen: nextScreen!,
     };
   }
 
@@ -521,8 +521,8 @@ export class VisualForge {
           throw new Error(`OpenAI API error: ${response.statusText}`);
         }
 
-        const data = await response.json();
-        const imageUrl = data.data[0].url;
+        const data = await response.json() as any;
+        const imageUrl = data.data[0].url as string;
 
         // Download image
         const imageResponse = await fetch(imageUrl);
@@ -700,7 +700,7 @@ Style: High-fidelity UI mockup, production-ready design, modern interface, profe
     const roles: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i]!.trim();
 
       // Skip header row and separator
       if (line.startsWith('| Role Name') || line.startsWith('|---') || !line.startsWith('|')) {

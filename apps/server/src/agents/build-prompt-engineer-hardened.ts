@@ -194,6 +194,7 @@ const PromptStatus = {
   REJECTED: 'rejected',
 } as const;
 
+// @ts-expect-error - Type defined for future use
 type PromptStatusValue = (typeof PromptStatus)[keyof typeof PromptStatus];
 
 export class BuildPromptEngineerHardened {
@@ -314,7 +315,7 @@ export class BuildPromptEngineerHardened {
         screenIndexHash: screenIndex.screenIndexHash,
       },
       userJourneys: journeys.map((j) => ({
-        role: j.role,
+        role: j.roleName,
         journeyHash: j.journeyHash!,
       })),
       mockups: mockups.map((m) => ({
@@ -629,7 +630,7 @@ export class BuildPromptEngineerHardened {
       case 'ui_screens': {
         const screenIndex = sequenceNumber - 3;
         const screenName = context.screenIndex.screens[screenIndex]?.name;
-        const screenSlug = screenName.toLowerCase().replace(/\s+/g, '-');
+        const screenSlug = screenName!.toLowerCase().replace(/\s+/g, '-');
 
         contract.scope.filesToCreate = [
           `src/screens/${screenSlug}.module.css`,
@@ -654,7 +655,7 @@ export class BuildPromptEngineerHardened {
 
     // Remove dependencies that already exist in ledger
     contract.dependencies.add = contract.dependencies.add.filter((dep) => {
-      const pkgName = dep.split('@')[0];
+      const pkgName = dep.split('@')[0]!;
       return !ledger.dependenciesAdded.has(pkgName);
     });
 
@@ -667,7 +668,7 @@ export class BuildPromptEngineerHardened {
   /**
    * Generate intent statement for phase
    */
-  private generateIntent(phase: BuildPhase, context: IsolatedContext): string {
+  private generateIntent(phase: BuildPhase, _context: IsolatedContext): string {
     switch (phase) {
       case 'scaffolding':
         return 'Initialize project structure with TypeScript, package.json, and core configuration files';
@@ -818,7 +819,7 @@ export class BuildPromptEngineerHardened {
     await this.validateConductorState(appRequestId);
 
     // Lock conductor
-    await this.conductor.lock(appRequestId, 'Build Prompt Engineer - Generating first prompt');
+    await this.conductor.lock(appRequestId);
 
     try {
       // Load isolated context (hash-locked artifacts only)
@@ -981,7 +982,7 @@ export class BuildPromptEngineerHardened {
     await this.validateConductorState(appRequestId);
 
     // Lock conductor
-    await this.conductor.lock(appRequestId, 'Build Prompt Engineer - Generating next prompt');
+    await this.conductor.lock(appRequestId);
 
     try {
       // Load isolated context
@@ -1002,7 +1003,7 @@ export class BuildPromptEngineerHardened {
         take: 1,
       });
 
-      const nextSequence = approvedPrompts.length > 0 ? approvedPrompts[0].sequenceIndex + 1 : 0;
+      const nextSequence = approvedPrompts.length > 0 ? approvedPrompts[0]!.sequenceIndex + 1 : 0;
 
       // Check if we've generated all prompts
       const totalNeeded = this.calculateTotalPrompts(context);
@@ -1179,7 +1180,7 @@ export class BuildPromptEngineerHardened {
     deps.forEach((dep) => {
       const parts = dep.split('@');
       if (parts.length === 2) {
-        result[parts[0]] = parts[1];
+        result[parts[0]!] = parts[1]!;
       }
     });
     return result;

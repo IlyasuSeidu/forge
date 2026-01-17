@@ -346,7 +346,7 @@ export class JourneyOrchestrator {
 
     // Generate user journey
     const journeyContent = await this.generateUserJourney(
-      roleName,
+      roleName!,
       roleNames,
       rolesDef.content,
       context
@@ -362,7 +362,7 @@ export class JourneyOrchestrator {
       data: {
         id: randomUUID(),
         appRequestId,
-        roleName,
+        roleName: roleName!,
         content: journeyContent,
         order: nextOrder,
         status: FlowStatus.AWAITING_APPROVAL,
@@ -795,7 +795,7 @@ Include:
       // Extract first column (role name)
       const match = line.match(/\|\s*([^|]+)\s*\|/);
       if (match) {
-        const roleName = match[1].trim();
+        const roleName = match[1]!.trim();
         if (roleName && roleName !== 'Role Name') {
           roleNames.push(roleName);
         }
@@ -921,8 +921,8 @@ Include:
       throw new Error(`LLM API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    const message = data.choices?.[0]?.message?.content;
+    const data = await response.json() as any;
+    const message = data.choices?.[0]?.message?.content as string | undefined;
 
     if (!message) {
       throw new Error('No response from LLM API');

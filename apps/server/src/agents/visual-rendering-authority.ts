@@ -520,12 +520,12 @@ export class VisualRenderingAuthority {
     });
 
     // Extract JSON from response
-    const textContent = response.content[0];
+    const textContent = response.content[0]!;
     if (textContent.type !== 'text') {
       throw new Error('Expected text response from Claude API');
     }
 
-    const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = (textContent as { type: 'text'; text: string }).text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('Failed to extract JSON from Claude response');
     }

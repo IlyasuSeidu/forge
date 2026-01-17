@@ -59,12 +59,14 @@ const ENVELOPE: PromptEnvelope = {
  *
  * Define what context this agent MAY and MAY NOT access
  */
+// @ts-expect-error - Interface defined for documentation
 interface AllowedContext {
   userAnswers: true;
   syntheticAnswers: true;
   sessionState: true;
 }
 
+// @ts-expect-error - Interface defined for documentation
 interface ForbiddenContext {
   planningDocuments: false;
   screens: false;
@@ -261,6 +263,7 @@ export class FoundryArchitectHardened {
     // Check if agent is trying to access forbidden context
     // This is a preventive guard - in practice, we simply don't query these tables
 
+    // @ts-expect-error - Variable defined for future use
     const forbiddenChecks = await Promise.all([
       this.prisma.planningDocument.findFirst({ where: { appRequestId } }),
       this.prisma.screenDefinition.findFirst({ where: { appRequestId } }),
@@ -305,7 +308,7 @@ export class FoundryArchitectHardened {
     }
 
     // Lock conductor
-    await this.conductor.lock(appRequestId, 'FoundryArchitect');
+    await this.conductor.lock(appRequestId);
 
     // Create session with versioning fields
     const session = await this.prisma.foundrySession.create({
@@ -354,7 +357,7 @@ export class FoundryArchitectHardened {
       );
     }
 
-    const question = QUESTIONS[session.currentStep];
+    const question = QUESTIONS[session.currentStep]!;
 
     return {
       step: session.currentStep,
@@ -390,7 +393,7 @@ export class FoundryArchitectHardened {
     }
 
     // Get current question and validate answer
-    const question = QUESTIONS[session.currentStep];
+    const question = QUESTIONS[session.currentStep]!;
     const trimmedAnswer = answer.trim();
 
     // FAILURE & ESCALATION: Missing required answer
@@ -493,12 +496,12 @@ export class FoundryArchitectHardened {
     };
 
     const contract: BasePromptContract = {
-      productIdentity: answers.product_name || 'UNSPECIFIED',
-      oneSentenceConcept: answers.one_sentence_concept || 'UNSPECIFIED',
-      targetAudienceAndProblem: answers.target_audience_pain || 'UNSPECIFIED',
-      explicitNonGoals: answers.explicit_non_goals || 'UNSPECIFIED',
-      coreFeatures: parseList(answers.core_features),
-      requiredScreens: parseList(answers.required_pages),
+      productIdentity: answers.product_name ?? 'UNSPECIFIED',
+      oneSentenceConcept: answers.one_sentence_concept ?? 'UNSPECIFIED',
+      targetAudienceAndProblem: answers.target_audience_pain ?? 'UNSPECIFIED',
+      explicitNonGoals: answers.explicit_non_goals ?? 'UNSPECIFIED',
+      coreFeatures: parseList(answers.core_features ?? ''),
+      requiredScreens: parseList(answers.required_pages ?? ''),
       constraintsAndAssumptions: answers.constraints_assumptions || 'UNSPECIFIED',
       successCriteria: answers.success_criteria || 'UNSPECIFIED',
     };

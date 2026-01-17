@@ -174,7 +174,7 @@ export class CompletionAuditor {
   private async applyDecisionRules(
     appRequestId: string,
     verification: any,
-    executionUnit: any
+    _executionUnit: any
   ): Promise<AuditorDecision> {
     // RULE 1: Verification passed + more units → proceed
     if (verification.status === 'passed') {
@@ -361,6 +361,7 @@ export class CompletionAuditor {
    * HARD PROHIBITION: This method must never be implemented
    * Kept here as documentation of what is FORBIDDEN
    */
+  // @ts-expect-error - Method defined to document prohibition
   private async executeCode(): Promise<never> {
     throw new Error('PROHIBITION VIOLATED: CompletionAuditor cannot execute code');
   }
@@ -368,6 +369,7 @@ export class CompletionAuditor {
   /**
    * HARD PROHIBITION: This method must never be implemented
    */
+  // @ts-expect-error - Method defined to document prohibition
   private async modifyFiles(): Promise<never> {
     throw new Error('PROHIBITION VIOLATED: CompletionAuditor cannot modify files');
   }
@@ -375,6 +377,7 @@ export class CompletionAuditor {
   /**
    * HARD PROHIBITION: This method must never be implemented
    */
+  // @ts-expect-error - Method defined to document prohibition
   private async skipVerification(): Promise<never> {
     throw new Error('PROHIBITION VIOLATED: CompletionAuditor cannot skip verification');
   }
@@ -382,6 +385,7 @@ export class CompletionAuditor {
   /**
    * HARD PROHIBITION: This method must never be implemented
    */
+  // @ts-expect-error - Method defined to document prohibition
   private async advanceExecutionDirectly(): Promise<never> {
     throw new Error(
       'PROHIBITION VIOLATED: CompletionAuditor cannot advance execution directly'
@@ -391,6 +395,7 @@ export class CompletionAuditor {
   /**
    * HARD PROHIBITION: This method must never be implemented
    */
+  // @ts-expect-error - Method defined to document prohibition
   private async changeProjectRules(): Promise<never> {
     throw new Error('PROHIBITION VIOLATED: CompletionAuditor cannot change project rules');
   }
@@ -398,6 +403,7 @@ export class CompletionAuditor {
   /**
    * HARD PROHIBITION: This method must never be implemented
    */
+  // @ts-expect-error - Method defined to document prohibition
   private async inventDecision(): Promise<never> {
     throw new Error('PROHIBITION VIOLATED: CompletionAuditor cannot invent decisions');
   }

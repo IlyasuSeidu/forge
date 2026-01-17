@@ -336,7 +336,7 @@ export class ScreenCartographer {
 
     // Generate screen description
     const description = await this.generateScreenDescription(
-      screenName,
+      screenName!,
       screenList,
       basePrompt,
       masterPlan,
@@ -353,7 +353,7 @@ export class ScreenCartographer {
       data: {
         id: randomUUID(),
         appRequestId,
-        screenName,
+        screenName: screenName!,
         content: description,
         order: nextOrder,
         status: ScreenStatus.AWAITING_APPROVAL,
@@ -878,8 +878,8 @@ Generate a detailed description for: **${screenName}**`;
       throw new Error(`LLM API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    const message = data.choices?.[0]?.message?.content;
+    const data = await response.json() as any;
+    const message = data.choices?.[0]?.message?.content as string | undefined;
 
     if (!message) {
       throw new Error('No response from LLM API');

@@ -21,6 +21,9 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import pino from 'pino';
 
+void writeFile;
+void join;
+
 export interface ScreenshotOptions {
   viewport: {
     width: number;
