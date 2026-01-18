@@ -18,6 +18,7 @@ import { approvalRoutes } from './routes/approvals.js';
 import { appRequestRoutes } from './routes/app-requests.js';
 import { previewRoutes } from './routes/preview.js';
 import { foundryRoutes } from './routes/foundry.js';
+import { foundryArchitectRoutes } from './routes/foundryArchitect.js';
 import { syntheticFounderRoutes } from './routes/synthetic-founder.js';
 import { productStrategistRoutes } from './routes/product-strategist.js';
 import { screenCartographerRoutes } from './routes/screen-cartographer.js';
@@ -74,7 +75,7 @@ export async function createServer() {
   );
 
   // Initialize Forge Conductor (master orchestration engine)
-  void new ForgeConductor(
+  const conductor = new ForgeConductor(
     executionService.getPrismaClient(),
     fastify.log
   );
@@ -170,6 +171,19 @@ export async function createServer() {
   );
 
   // Register agent-specific artifact routes
+  // PRODUCTION WIRING: Agent 1 with full conductor integration
+  await fastify.register(
+    async (instance) =>
+      foundryArchitectRoutes(
+        instance,
+        executionService.getPrismaClient(),
+        conductor,
+        fastify.log as any
+      ),
+    { prefix: '/api' }
+  );
+
+  // Legacy foundry routes (kept for backwards compatibility)
   await fastify.register(
     async (instance) =>
       foundryRoutes(instance, executionService.getPrismaClient(), fastify.log as any),
