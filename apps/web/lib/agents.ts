@@ -14,6 +14,7 @@ export type AgentStatus =
   | 'in_progress'       // Agent working
   | 'awaiting_approval' // User action required
   | 'approved'          // Hash-locked and approved
+  | 'your_turn'         // Ready for user to start
   | 'failed';           // Error (user must intervene)
 
 export interface AgentState {
@@ -259,6 +260,12 @@ export const STATUS_COLORS = {
     border: 'border-amber-300',
     dot: 'bg-amber-500',
   },
+  your_turn: {
+    bg: 'bg-purple-100',
+    text: 'text-purple-700',
+    border: 'border-purple-300',
+    dot: 'bg-purple-500',
+  },
   approved: {
     bg: 'bg-green-100',
     text: 'text-green-700',
@@ -281,6 +288,8 @@ export function getStatusLabel(status: AgentStatus): string {
       return 'Working...';
     case 'awaiting_approval':
       return 'Your Turn';
+    case 'your_turn':
+      return 'Ready';
     case 'approved':
       return 'Complete';
     case 'failed':

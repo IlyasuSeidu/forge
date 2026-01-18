@@ -22,7 +22,7 @@ export async function assertProjectExists(
   });
 
   if (!project) {
-    throw new NotFoundError(`Project ${projectId} not found`);
+    throw new NotFoundError('Project', projectId);
   }
 }
 
@@ -50,7 +50,7 @@ export async function getOrCreateConductorState(
       data: {
         id: crypto.randomUUID(),
         projectId,
-        description: 'Initial app request',
+        prompt: 'Initial app request',
         status: 'pending',
       },
     });
@@ -128,7 +128,7 @@ export async function transitionState(
   const snapshot = await conductor.getStateSnapshot(appRequestId);
 
   if (!snapshot) {
-    throw new NotFoundError(`Conductor state not found for app request ${appRequestId}`);
+    throw new NotFoundError('ConductorState', appRequestId);
   }
 
   // Verify current state matches expected fromState

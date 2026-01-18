@@ -472,3 +472,30 @@ export async function getAppRequests(projectId: string) {
   const data = await response.json();
   return data.appRequests || [];
 }
+
+// ============================================================================
+// AGENT STATES (Timeline / Progress)
+// ============================================================================
+
+export interface AgentState {
+  id: string;
+  name: string;
+  status: 'pending' | 'in_progress' | 'awaiting_approval' | 'approved' | 'your_turn';
+  hash: string | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+}
+
+/**
+ * Get agent states for project (single source of truth for timeline)
+ * Backend endpoint: GET /api/projects/:projectId/agent-states
+ */
+export async function getAgentStates(projectId: string): Promise<{ agents: AgentState[] }> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/agent-states`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch agent states: ${response.statusText}`);
+  }
+
+  return response.json();
+}

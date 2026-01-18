@@ -19,6 +19,7 @@ import { appRequestRoutes } from './routes/app-requests.js';
 import { previewRoutes } from './routes/preview.js';
 import { foundryRoutes } from './routes/foundry.js';
 import { foundryArchitectRoutes } from './routes/foundryArchitect.js';
+import { agentStatesRoutes } from './routes/agentStates.js';
 import { syntheticFounderRoutes } from './routes/synthetic-founder.js';
 import { productStrategistRoutes } from './routes/product-strategist.js';
 import { screenCartographerRoutes } from './routes/screen-cartographer.js';
@@ -178,6 +179,17 @@ export async function createServer() {
         instance,
         executionService.getPrismaClient(),
         conductor,
+        fastify.log as any
+      ),
+    { prefix: '/api' }
+  );
+
+  // Agent states endpoint (single source of truth for timeline/progress)
+  await fastify.register(
+    async (instance) =>
+      agentStatesRoutes(
+        instance,
+        executionService.getPrismaClient(),
         fastify.log as any
       ),
     { prefix: '/api' }

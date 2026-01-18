@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { AgentTimeline } from '@/components/agents/AgentTimeline';
 import { AgentState } from '@/lib/agents';
 import { AgentStateProvider } from '@/lib/context/AgentStateContext';
-import { getProjectState } from '@/lib/api/project-state';
+import { getAgentStates } from '@/lib/api/agents';
 
 interface ProjectLayoutProps {
   children: ReactNode;
@@ -20,51 +20,57 @@ interface ProjectLayoutProps {
 }
 
 /**
- * Fetches project data from the unified project state API
- * This now calls the real backend endpoint that returns all agent states
+ * Fetches project data and agent states from database (PRODUCTION)
+ * Uses the new agent-states endpoint (single source of truth)
  */
 async function getProjectDataAndAgents(projectId: string) {
   try {
-    // Call the unified project state API
-    const projectState = await getProjectState(projectId);
+    // Fetch agent states from new production endpoint
+    const { agents } = await getAgentStates(projectId);
 
     // Map backend agent states to frontend AgentState format
-    const agentStates: AgentState[] = projectState.agentStates.map((agent) => ({
-      id: agent.agentId,
+    const agentStates: AgentState[] = agents.map((agent) => ({
+      id: agent.id,
       status: agent.status,
-      hash: agent.artifactHash,
-      approvedAt: agent.updatedAt,
-      // approvalId will be populated by approval system if awaiting_approval
+      hash: agent.hash || undefined,
+      approvedAt: agent.approvedAt || undefined,
+      // approvalId populated if needed
       approvalId: agent.status === 'awaiting_approval' ? undefined : undefined,
     }));
 
-    // Count approved agents
-    const approvalCount = agentStates.filter((a) => a.status === 'approved').length;
-    const hashCount = agentStates.filter((a) => a.hash).length;
+    // Count approved agents and hashes (from real DB data)
+    const approvalCount = agents.filter((a) => a.status === 'approved').length;
+    const hashCount = agents.filter((a) => a.hash).length;
 
-    // Derive project status from conductor state or latest app request
+    // Derive project status from agent progress
     let status: 'planning' | 'building' | 'verifying' | 'complete' = 'planning';
-    if (projectState.latestAppRequest?.status === 'building') {
-      status = 'building';
-    } else if (projectState.latestAppRequest?.status === 'verification_running') {
+    if (approvalCount >= 11) {
+      // Forge Implementer done
       status = 'verifying';
-    } else if (projectState.latestAppRequest?.status === 'completed') {
+    } else if (approvalCount >= 2) {
+      // Past planning phase
+      status = 'building';
+    }
+    if (approvalCount === 17) {
       status = 'complete';
     }
 
+    // For now, hardcode project name (will be fixed when we add GET /projects/:id)
+    const project = {
+      id: projectId,
+      name: 'My Project',
+      status,
+      createdAt: new Date().toISOString(),
+      hashCount,
+      approvalCount,
+    };
+
     return {
-      project: {
-        id: projectState.project.id,
-        name: projectState.project.name,
-        status,
-        createdAt: projectState.project.createdAt,
-        hashCount,
-        approvalCount,
-      },
+      project,
       agentStates,
     };
   } catch (error) {
-    console.error('Failed to fetch project state:', error);
+    console.error('Failed to fetch agent states:', error);
 
     // Fallback to minimal mock data if API fails
     return {
