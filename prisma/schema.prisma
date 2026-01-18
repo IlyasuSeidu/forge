@@ -152,6 +152,8 @@ model ConductorState {
   currentStatus String
   locked        Boolean    @default(false)
   awaitingHuman Boolean    @default(false)
+  pauseReason   String?    // Why execution was paused (for human review)
+  failureReason String?    // Why execution failed (for error tracking)
   lastAgent     String?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -167,12 +169,12 @@ model FoundrySession {
   appRequestId     String            @unique
   status           String // "asking" | "awaiting_approval" | "approved"
   currentStep      Int               @default(0)
-  answers          String // JSON string containing answers
+  answers          String // JSON string containing answers (serves as contractJson)
   draftPrompt      String?
 
   // Immutability & Versioning (Production Hardening)
   basePromptVersion Int              @default(1)
-  basePromptHash    String?          // SHA-256 hash of approved content
+  basePromptHash    String?          @unique // SHA-256 hash of approved content (serves as contractHash)
   approvedAt        DateTime?        // When prompt was approved
   approvedBy        String?          // "human" | "synthetic_founder"
 
@@ -183,7 +185,6 @@ model FoundrySession {
 
   @@index([appRequestId])
   @@index([status])
-  @@index([basePromptHash])
 }
 
 model SyntheticAnswer {
