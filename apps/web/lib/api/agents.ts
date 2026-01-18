@@ -8,8 +8,9 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 /**
- * Foundry Architect - Get session with answers
+ * Foundry Architect - Get session with answers (LEGACY ENDPOINT)
  * Backend endpoint: GET /api/app-requests/:appRequestId/foundry-session
+ * @deprecated Use getFoundryArchitectState() for production endpoints
  */
 export async function getFoundrySession(appRequestId: string) {
   const response = await fetch(`${API_BASE_URL}/app-requests/${appRequestId}/foundry-session`);
@@ -21,6 +22,150 @@ export async function getFoundrySession(appRequestId: string) {
 
   const data = await response.json();
   return data.session || null;
+}
+
+// ============================================================================
+// PRODUCTION ENDPOINTS: Foundry Architect (Agent 1)
+// ============================================================================
+
+export interface FoundryArchitectState {
+  conductorState: {
+    currentStatus: string;
+    locked: boolean;
+    awaitingHuman: boolean;
+    pauseReason?: string;
+    failureReason?: string;
+  };
+  artifact: {
+    status: 'pending' | 'asking' | 'awaiting_approval' | 'approved';
+    answers?: Record<string, string>;
+    basePromptHash?: string;
+    approvedBy?: string;
+    approvedAt?: string;
+  };
+  uiState: 'pending' | 'awaiting_approval' | 'approved';
+  questions: Array<{ id: string; question: string }>;
+}
+
+export interface FoundryArchitectSession {
+  id: string;
+  status: 'asking' | 'awaiting_approval' | 'approved';
+  currentStep: number;
+  createdAt: string;
+}
+
+/**
+ * Foundry Architect - Get full state (PRODUCTION)
+ * Backend endpoint: GET /api/projects/:projectId/foundry-architect
+ */
+export async function getFoundryArchitectState(projectId: string): Promise<FoundryArchitectState> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/foundry-architect`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch foundry architect state: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Foundry Architect - Start new session (PRODUCTION)
+ * Backend endpoint: POST /api/projects/:projectId/foundry-architect/start
+ */
+export async function startFoundryArchitect(projectId: string): Promise<{
+  success: boolean;
+  session: FoundryArchitectSession;
+  questions: Array<{ id: string; question: string }>;
+}> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/foundry-architect/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to start foundry architect: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Foundry Architect - Submit answers (PRODUCTION)
+ * Backend endpoint: POST /api/projects/:projectId/foundry-architect/submit
+ */
+export async function submitFoundryAnswers(
+  projectId: string,
+  answers: Record<string, string>
+): Promise<{
+  success: boolean;
+  session: {
+    status: 'awaiting_approval';
+    contractHash: string;
+  };
+}> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/foundry-architect/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ answers }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to submit answers: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Foundry Architect - Approve answers (PRODUCTION)
+ * Backend endpoint: POST /api/projects/:projectId/foundry-architect/approve
+ */
+export async function approveFoundryAnswers(
+  projectId: string,
+  approvedBy: string = 'human'
+): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/foundry-architect/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approvedBy }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to approve answers: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Foundry Architect - Reject answers (PRODUCTION)
+ * Backend endpoint: POST /api/projects/:projectId/foundry-architect/reject
+ */
+export async function rejectFoundryAnswers(
+  projectId: string,
+  reason: string
+): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/foundry-architect/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to reject answers: ${response.statusText}`);
+  }
+
+  return response.json();
 }
 
 /**
