@@ -57,15 +57,6 @@ export default function FoundryArchitectPage() {
       const currentState = await getFoundryArchitectState(projectId);
       setState(currentState);
 
-      // If session doesn't exist, start it
-      if (currentState.artifact.status === 'pending') {
-        await startFoundryArchitect(projectId);
-
-        // Reload state after starting
-        const updatedState = await getFoundryArchitectState(projectId);
-        setState(updatedState);
-      }
-
       // Load existing answers if any
       if (currentState.artifact.answers) {
         setAnswers(currentState.artifact.answers);
@@ -74,6 +65,25 @@ export default function FoundryArchitectPage() {
       const message = err instanceof Error ? err.message : 'Failed to load state';
       setError(message);
       console.error('Failed to load Foundry Architect state:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // Start agent session (called by button click)
+  async function handleStartAgent() {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      await startFoundryArchitect(projectId);
+
+      // Reload state after starting
+      await loadState();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to start agent';
+      setError(message);
+      console.error('Failed to start Foundry Architect:', err);
     } finally {
       setIsLoading(false);
     }
@@ -261,8 +271,32 @@ export default function FoundryArchitectPage() {
         )}
       </div>
 
+      {/* Start Agent Button (when no contract exists) */}
+      {state?.artifact.status === 'pending' && (
+        <div className="bg-white border-2 border-gray-200 rounded-lg p-8 text-center">
+          <div className="max-w-md mx-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to begin?</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Start the Foundry Architect to answer 8 structured questions about your application.
+              These questions form the foundation for everything that follows.
+            </p>
+            <button
+              onClick={handleStartAgent}
+              disabled={isLoading}
+              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+                isLoading
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {isLoading ? 'Starting...' : 'Start Agent'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Instructions */}
-      {!isLocked && (
+      {!isLocked && state?.artifact.status !== 'pending' && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
           <div className="flex gap-3">
             <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -285,7 +319,8 @@ export default function FoundryArchitectPage() {
       )}
 
       {/* Questions */}
-      <div className="space-y-6 mb-8">
+      {state?.artifact.status !== 'pending' && (
+        <div className="space-y-6 mb-8">
         {questions.map((q, index) => (
           <div key={q.id} className="bg-white border border-gray-200 rounded-lg p-6">
             {/* Question Number & Text */}
@@ -326,6 +361,7 @@ export default function FoundryArchitectPage() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Approval Section */}
       {!isLocked && state?.uiState === 'awaiting_approval' && (
