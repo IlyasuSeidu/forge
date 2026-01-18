@@ -6,6 +6,48 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
+// ============================================================================
+// Project Management API
+// ============================================================================
+
+export interface CreateProjectInput {
+  name: string;
+  description: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Creates a new project
+ */
+export async function createProject(input: CreateProjectInput): Promise<Project> {
+  const response = await fetch(`${API_BASE_URL}/projects`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    if (response.status === 400) {
+      const error = await response.json();
+      throw new Error(error.message || 'Invalid project data');
+    }
+    throw new Error(`Failed to create project: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// ============================================================================
+// Project State API
+// ============================================================================
+
 export type AgentStatus = 'pending' | 'awaiting_approval' | 'approved' | 'failed' | 'in_progress';
 
 export interface AgentState {
